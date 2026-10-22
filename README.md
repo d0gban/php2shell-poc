@@ -115,6 +115,24 @@ against the real thing. Exposure is established by the provable facts a blue tea
 which PHP build is running (version → CVE verdict) and its mitigation-config state — via `/assess.php`
 and `scan/check.sh`.
 
+## Testing WAF / IDS rules
+
+`scan/waf-test.sh` generates **detection traffic** — not an exploit — so you can tune and validate
+rules. It sends the PHP2Shell request *signature*: an unauthenticated multipart upload carrying the
+`PHP_SESSION_UPLOAD_PROGRESS` marker (a normal, documented PHP field), plus a `control` request that
+a good rule must leave alone. The probes carry no memory-corruption primitive, offsets or command
+payload — they cannot achieve RCE against any target.
+
+```bash
+bash scan/waf-test.sh                        # baseline: probe the lab directly (no WAF) -> all 200
+TARGET=http://waf.local:80 bash scan/waf-test.sh   # probe THROUGH your WAF -> "sig" should be blocked
+```
+
+A tuned rule blocks the `sig` / `sig-name` probes (403/406/501/reset) while leaving `control` at 200.
+Each run prints a unique marker — grep it on both WAF and app logs to confirm the rule fired. Build
+rules from the public detection content: a `multipart/form-data` POST whose body contains the literal
+string `PHP_SESSION_UPLOAD_PROGRESS`.
+
 ## Network binding (WAF / cross-machine testing)
 
 By default the lab publishes its ports on **`127.0.0.1` only** (`LAB_BIND` in `.env`) — reachable
