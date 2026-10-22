@@ -1,6 +1,6 @@
-# Outdated target — PHP 8.3.10 (supported branch, older than the fixed 8.3.36). Affected.
+# Outdated target — PHP 8.4.26 (supported branch, older than the fixed 8.4.27). Affected.
 # Stock production php.ini + realistic banner; only the PHP version differs from the patched image.
-ARG PHP_TAG=8.3.10-apache
+ARG PHP_TAG=8.4.26-apache
 FROM php:${PHP_TAG}
 LABEL lab="php2shell-poc" role="outdated-vulnerable"
 # Production php.ini + a natural fingerprint for WAF/IDS rule testing:

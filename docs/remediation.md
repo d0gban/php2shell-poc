@@ -36,11 +36,11 @@ The lab serves one identical web application on three real PHP runtimes. Scanner
 ROLE       PORT   PHP        STATUS           FIXED-IN
 -----------------------------------------------------------------
 EOL        8080   8.0.x      EOL_UNSUPPORTED  none (EOL)
-OUTDATED   8081   8.3.10     VULNERABLE       8.3.36
+OUTDATED   8081   8.4.26     VULNERABLE       8.4.27
 PATCHED    8082   8.3.x      PATCHED          8.3.36
 ```
 
-- **EOL (8.0) and Outdated (8.3.10)** runtimes are exposed: they run genuinely affected PHP builds
+- **EOL (8.0) and Outdated (8.4.26)** runtimes are exposed: they run genuinely affected PHP builds
   with no fix applied. Any site served by these runtimes is at risk regardless of its own code.
 - **Patched (≥ 8.3.36)** runtime carries the fix and is not exposed.
 
