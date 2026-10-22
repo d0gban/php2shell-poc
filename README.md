@@ -30,9 +30,9 @@ Both are **unauthenticated** and trigger **before application code runs**. PHP r
 
 | Container | Port | PHP (default tag) | Verdict |
 |-----------|------|-------------------|---------|
-| `php2shell-eol` | **8080** | `8.0-apache` (end-of-life) | 🔴 VULNERABLE · EOL |
+| `php2shell-eol` | **8080** | `8.0.30-apache` (end-of-life) | 🔴 VULNERABLE · EOL |
 | `php2shell-outdated` | **8081** | `8.3.10-apache` (< 8.3.36) | 🔴 VULNERABLE |
-| `php2shell-patched` | **8082** | `8.3-apache` (≥ 8.3.36) | 🟢 PATCHED |
+| `php2shell-patched` | **8082** | `8.3.36-apache` (= fix) | 🟢 PATCHED |
 
 All three serve the **identical** web app (`./webapp`, mounted read-only). Only the PHP runtime
 differs — that is the whole point.
@@ -156,8 +156,9 @@ checks and printed URLs.
 
 Edit `.env` (`EOL_TAG`, `OLD_TAG`, `PATCHED_TAG`) and re-run `docker compose up --build -d`.
 The verdict engine reads the **live** `PHP_VERSION`, so the badges stay correct for any tag.
-If `php:8.3.36-apache` is not yet published on Docker Hub, the default `8.3-apache` pulls the
-current patched 8.3 build; pin the exact tag once you've confirmed it exists.
+All three tags are pinned to concrete patch versions for reproducibility. If you switch a role to a
+floating tag (e.g. `8.3-apache`), rebuild with `docker compose build --pull` so a stale local cache
+can't leave an old PHP version under the "patched" role and mislabel it VULNERABLE.
 
 ## Report
 

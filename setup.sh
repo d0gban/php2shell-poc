@@ -82,6 +82,7 @@ require_docker
 
 say ""
 say "${CYN}Building and starting 3 containers (first run pulls PHP images)...${RST}"
+mkdir -p logs/eol logs/outdated logs/patched   # host mount dirs for raw HTTP capture
 $DC up --build -d
 
 # --- wait until each app answers ----------------------------------------------

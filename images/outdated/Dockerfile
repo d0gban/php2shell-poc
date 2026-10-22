@@ -10,6 +10,8 @@ LABEL lab="php2shell-poc" role="outdated-vulnerable"
 #           Apache's own error pages (e.g. a 404 to a nonexistent path), not just PHP-handled ones.
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
  && sed -ri 's/^[; ]*expose_php\s*=.*/expose_php = On/' "$PHP_INI_DIR/php.ini" \
- && a2enmod ssl >/dev/null \
+ && a2enmod ssl dumpio >/dev/null \
  && printf 'ServerTokens Full\nServerSignature On\n' > /etc/apache2/conf-enabled/zzz-fingerprint.conf
+# Raw-HTTP capture for WAF rule development (observability only; see rawlog.conf).
+COPY rawlog.conf /etc/apache2/conf-enabled/zzz-rawlog.conf
 EXPOSE 80
