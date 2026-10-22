@@ -19,7 +19,7 @@ printf '%s\n' "-----------------------------------------------------------------
 i=0
 for port in "${PORTS[@]}"; do
   label="${LABELS[$i]:-SVC$i}"
-  url="http://localhost:${port}/assess.php?format=json"
+  url="http://${LAB_HOST:-localhost}:${port}/assess.php?format=json"   # LAB_HOST overrides for a non-loopback bind
   body="$(curl -fsS --max-time 5 "$url" 2>/dev/null)"
   if [ -z "$body" ]; then
     printf '%-10s %-6s %-10s %-16s %s\n' "$label" "$port" "-" "UNREACHABLE" "-"

@@ -6,7 +6,9 @@ PHP target running genuinely affected builds, so you can profile the real server
 **develop and test firewall / WAF and detection rules** for the **PHP2Shell** vulnerability pair —
 against real PHP, not an artificial stand-in, and without touching production.
 
-> ⚠️ **Scope.** This is an isolated, loopback-only lab for **authorized, defensive security work**.
+> ⚠️ **Scope.** This is an isolated lab for **authorized, defensive security work**, loopback-bound
+> by default (see [Network binding](#network-binding-waf--cross-machine-testing) to reach it from a
+> separate WAF/client box on an isolated segment).
 > It is **never deployed** — spin it up, use it, tear it down. Do **not** expose it on any
 > internet-facing or shared host. It ships **no exploit code**; it is a target/reference environment,
 > not an attack toolkit.
@@ -78,6 +80,27 @@ The point is the **runtime underneath** the app. Each host runs a real PHP build
 way a production server does (`Server` / `X-Powered-By`, error pages, default config), giving you an
 authentic fingerprint to tune firewall / WAF / IDS rules against.
 
+## Server fingerprint
+
+Each host is deliberately left with a **production-realistic banner** (not a locked-down one) so your
+rules see what a real server leaks:
+
+- `X-Powered-By: PHP/<version>` on PHP responses (`expose_php = On`).
+- `Server: Apache/2.4.x (Debian) OpenSSL/<ver> PHP/<version>` on **every** response — including
+  Apache's own error pages, e.g. a 404 to a nonexistent path — because the images set
+  `ServerTokens Full` + `ServerSignature On` and load `mod_ssl`.
+
+Verify:
+
+```bash
+curl -sI http://localhost:8080/            | grep -iE 'server|x-powered-by'
+curl -sI http://localhost:8080/nope-404    | grep -i server   # Apache 404 still leaks PHP + OpenSSL
+```
+
+That full fingerprint is the point for a blue team: the PHP build is observable on the vulnerable and
+patched hosts alike, so you can tune version-detection / WAF rules on *which* PHP build is running,
+then confirm they don't fire on the patched baseline.
+
 ## No exploit code
 
 This lab ships **no exploit, PoC, or post-exploitation tooling** — by design. The real exploit
@@ -86,6 +109,25 @@ is to stand up **genuinely affected PHP runtimes** so defensive rules can be bui
 against the real thing. Exposure is established by the provable facts a blue team actually works from —
 which PHP build is running (version → CVE verdict) and its mitigation-config state — via `/assess.php`
 and `scan/check.sh`.
+
+## Network binding (WAF / cross-machine testing)
+
+By default the lab publishes its ports on **`127.0.0.1` only** (`LAB_BIND` in `.env`) — reachable
+from the Docker host, which is all you need when a **reverse-proxy WAF runs on the same host** and
+points its upstream at `127.0.0.1:808x`. Traffic still traverses the WAF, so your rules are exercised.
+
+To test from a **separate WAF / client box**, set `LAB_BIND` to an **isolated interface IP** (a
+host-only adapter or lab-VLAN address, e.g. `192.168.56.10`) and re-run `bash setup.sh`:
+
+```bash
+# .env
+LAB_BIND=192.168.56.10      # only machines on that isolated segment can reach the lab
+```
+
+Use `LAB_BIND=0.0.0.0` (all interfaces) **only** on a genuinely isolated segment with no route to
+production or the internet — these are real outdated PHP runtimes and must never be reachable from an
+untrusted network. `setup.sh` and `scan/check.sh` follow `LAB_BIND` automatically for their health
+checks and printed URLs.
 
 ## Swapping versions
 

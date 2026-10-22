@@ -68,6 +68,15 @@ PORTS=(8080 8081 8082)
 ROLES=("EOL (end-of-life)" "OUTDATED" "PATCHED")
 EXPECT=("VULNERABLE" "VULNERABLE" "PATCHED")
 
+# --- resolve the host to probe / print, honouring LAB_BIND from .env ----------
+# (compose publishes on LAB_BIND; a non-loopback bind means localhost won't answer.)
+LAB_BIND="${LAB_BIND:-$(sed -n 's/^LAB_BIND=//p' .env 2>/dev/null | tail -1)}"
+LAB_BIND="${LAB_BIND:-127.0.0.1}"
+case "$LAB_BIND" in
+  ""|0.0.0.0) HOST=127.0.0.1 ;;   # bound to all ifaces -> loopback works locally
+  *)          HOST="$LAB_BIND" ;; # bound to a specific IP -> probe that IP
+esac
+
 printf '\n%s== PHP2Shell lab — CVE-2026-109618 / CVE-2026-109619 ==%s\n\n' "$BLD" "$RST"
 require_docker
 
@@ -81,7 +90,7 @@ say "Waiting for the web apps to come up..."
 for idx in 0 1 2; do
   port="${PORTS[$idx]}"
   for _ in $(seq 1 40); do
-    if curl -fsS --max-time 2 "http://localhost:${port}/assess.php?format=json" >/dev/null 2>&1; then
+    if curl -fsS --max-time 2 "http://${HOST}:${port}/assess.php?format=json" >/dev/null 2>&1; then
       ok "port ${port} ready (${ROLES[$idx]})"
       break
     fi
@@ -98,22 +107,22 @@ printf '  | %-22s | %-5s | %-28s | %-9s |\n' "ROLE" "PORT" "URL" "EXPECT"
 line
 for idx in 0 1 2; do
   printf '  | %-22s | %-5s | %-28s | %-9s |\n' \
-    "${ROLES[$idx]}" "${PORTS[$idx]}" "http://localhost:${PORTS[$idx]}" "${EXPECT[$idx]}"
+    "${ROLES[$idx]}" "${PORTS[$idx]}" "http://${HOST}:${PORTS[$idx]}" "${EXPECT[$idx]}"
 done
 line
 
 # --- live verdicts from the scanner ------------------------------------------
 say ""
 say "${CYN}Live verdicts:${RST}"
-if [ -f scan/check.sh ]; then bash scan/check.sh || true; fi
+if [ -f scan/check.sh ]; then LAB_HOST="$HOST" bash scan/check.sh || true; fi
 
 cat <<INFO
 
   Try it:
-    - Landing page ....... http://localhost:8080  (and :8081, :8082)
-    - Self-assessment .... http://localhost:8080/assess.php
-    - Machine-readable ... http://localhost:8080/assess.php?format=json
-    - Patched baseline ... http://localhost:8082   (compare fingerprint vs the vulnerable hosts)
+    - Landing page ....... http://${HOST}:8080  (and :8081, :8082)
+    - Self-assessment .... http://${HOST}:8080/assess.php
+    - Machine-readable ... http://${HOST}:8080/assess.php?format=json
+    - Patched baseline ... http://${HOST}:8082   (compare fingerprint vs the vulnerable hosts)
 
   Stop the lab:
     bash setup.sh --down

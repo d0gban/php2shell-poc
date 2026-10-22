@@ -8,7 +8,7 @@ services:
       context: ./images/eol
       args: { PHP_TAG: "${EOL_TAG}" }
     container_name: php2shell-eol
-    ports: ["127.0.0.1:8080:80"]      # loopback only — never expose a vulnerable build on a routable iface
+    ports: ["${LAB_BIND}:8080:80"]      # bind iface via LAB_BIND in .env (default 127.0.0.1)
     volumes:
       - ./webapp:/var/www/html:ro            # identical app on all three; only PHP differs
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
@@ -18,7 +18,7 @@ services:
       context: ./images/outdated
       args: { PHP_TAG: "${OLD_TAG}" }
     container_name: php2shell-outdated
-    ports: ["127.0.0.1:8081:80"]      # loopback only
+    ports: ["${LAB_BIND}:8081:80"]      # bind iface via LAB_BIND in .env
     volumes:
       - ./webapp:/var/www/html:ro
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
@@ -28,7 +28,7 @@ services:
       context: ./images/patched
       args: { PHP_TAG: "${PATCHED_TAG}" }
     container_name: php2shell-patched
-    ports: ["127.0.0.1:8082:80"]      # loopback only
+    ports: ["${LAB_BIND}:8082:80"]      # bind iface via LAB_BIND in .env
     volumes:
       - ./webapp:/var/www/html:ro
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
