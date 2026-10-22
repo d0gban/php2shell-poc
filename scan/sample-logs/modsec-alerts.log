@@ -1,0 +1,36 @@
+# === SAMPLE: WAF alerts (ModSecurity error-log style) =============================
+# This is what your WAF writes when the php2shell-virtual-patch.conf rules fire.
+# Same attacker (203.0.113.50) and timeline as killchain-access.log, so you can line
+# them up. Rule IDs match waf/php2shell-virtual-patch.conf. Not a real capture.
+#
+# Read a line as: [time] [client IP] ModSecurity: <action> (phase N). <why> [id "RULE"] [msg "..."] [tag "..."] [uri "..."]
+#
+# --------------------------------------------------------------------------------
+# STAGE 2 — ACTIVE RECON  ->  WAF goal: BLOCK the noisy tooling (403) + alert
+# --------------------------------------------------------------------------------
+[Thu Oct 22 14:03:11.482013 2026] [security2:error] [pid 2041] [client 203.0.113.50] ModSecurity: Access denied with code 403 (phase 1). Matched "Operator Rx" against variable `REQUEST_HEADERS:User-Agent` (value: "nuclei/3.2.1") [file "/etc/modsecurity/php2shell-virtual-patch.conf"] [line "90"] [id "1000200"] [msg "PHP2Shell: known vulnerability-scanner/checker User-Agent blocked"] [logdata "nuclei/3.2.1"] [tag "scanner"] [tag "recon"] [hostname "app01"] [uri "/assess.php"] [unique_id "ZxA1b2c3"]
+[Thu Oct 22 14:03:12.109773 2026] [security2:error] [pid 2042] [client 203.0.113.50] ModSecurity: Access denied with code 403 (phase 1). Matched phrase "whatweb" at REQUEST_HEADERS:User-Agent. [id "1000200"] [msg "PHP2Shell: known vulnerability-scanner/checker User-Agent blocked"] [logdata "whatweb/0.5.5"] [tag "scanner"] [tag "recon"] [hostname "app01"] [uri "/.env"] [unique_id "ZxA1b2c4"]
+[Thu Oct 22 14:03:13.550901 2026] [security2:warn] [pid 2044] [client 203.0.113.50] ModSecurity: Warning. Operator EQ matched 0 at REQUEST_HEADERS. [id "1000210"] [msg "PHP2Shell: request with no User-Agent (common for recon scripts) - review before blocking"] [tag "scanner"] [hostname "app01"] [uri "/wp-login.php"] [unique_id "ZxA1b2c7"]
+#   ^ 1000210 is a WARNING (log-only) by default — it flags the empty-UA request but
+#     does not block it yet. Confirm it is safe for your traffic before enabling block.
+#
+# --------------------------------------------------------------------------------
+# STAGE 3 — EXPLOITATION  ->  WAF goal: BLOCK the attack shape; allow real uploads
+# --------------------------------------------------------------------------------
+# 1000100 always logs every multipart POST to PHP (visibility, not a block):
+[Thu Oct 22 14:05:40.771220 2026] [security2:warn] [pid 2050] [client 203.0.113.50] ModSecurity: Warning. Matched "Operator Rx" against "REQUEST_HEADERS:Content-Type" (value: "multipart/form-data; boundary=----x9f2"). [id "1000100"] [msg "PHP2Shell: multipart/form-data POST to PHP endpoint (review / known trigger content type)"] [tag "CVE-2026-109618"] [tag "CVE-2026-109619"] [hostname "app01"] [uri "/index.php"] [unique_id "ZxA2d4e5"]
+# 1000120 fires on the PHP_SESSION_UPLOAD_PROGRESS marker (the CVE-2026-109619 vector):
+[Thu Oct 22 14:05:40.772640 2026] [security2:error] [pid 2050] [client 203.0.113.50] ModSecurity: Access denied with code 403 (phase 2). Matched "Operator Rx" against variable `MULTIPART_PART_HEADERS` (value: "PHP_SESSION_UPLOAD_PROGRESS"). [file "/etc/modsecurity/php2shell-virtual-patch.conf"] [line "60"] [id "1000120"] [msg "PHP2Shell: PHP_SESSION_UPLOAD_PROGRESS present (session.upload_progress vector)"] [tag "CVE-2026-109619"] [hostname "app01"] [uri "/index.php"] [unique_id "ZxA2d4e5"]
+# 1000130 fires on the oversized (~64KB) single field:
+[Thu Oct 22 14:05:52.004511 2026] [security2:error] [pid 2051] [client 203.0.113.50] ModSecurity: Access denied with code 403 (phase 2). Operator GT matched 2097152 at ARGS. [id "1000130"] [msg "PHP2Shell: oversized form field value (>2MB single field)"] [tag "CVE-2026-109618"] [hostname "app01"] [uri "/index.php"] [unique_id "ZxA2d4f0"]
+# 1000110 (once you flip it to deny) blocks multipart on a NON-upload route:
+[Thu Oct 22 14:06:03.330880 2026] [security2:error] [pid 2052] [client 203.0.113.50] ModSecurity: Access denied with code 403 (phase 2). [id "1000110"] [msg "PHP2Shell: multipart POST to non-upload route - candidate to block"] [tag "virtual-patch"] [hostname "app01"] [uri "/index.php"] [unique_id "ZxA2d4f3"]
+#
+# --------------------------------------------------------------------------------
+# WHAT GOOD LOOKS LIKE:
+#   - Stage 1 (passive recon) produces NO block here — a GET of "/" is legal. You
+#     handle stage 1 by SCRUBBING banners at the edge, not by blocking (see DETECTION.md).
+#   - The attacker's /index.php multipart is DENIED (1000120/1000130/1000110)...
+#   - ...while the legitimate POST /admin/media/upload from normal-access.log is NOT
+#     here at all, because rule 1000090 allow-listed that route. That's the win:
+#     block the attack shape, leave real uploads alone.

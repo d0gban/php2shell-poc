@@ -1,0 +1,37 @@
+# PHP2Shell (CVE-2026-109618 / CVE-2026-109619) patch-management lab.
+# Three production-shaped PHP targets: two genuinely affected, one patched.
+# One command:  bash setup.sh   (or: docker compose up --build -d)
+# URLs:  EOL http://localhost:8080  |  Outdated http://localhost:8081  |  Patched http://localhost:8082
+services:
+  php-eol:
+    build:
+      context: ./images/eol
+      args: { PHP_TAG: "${EOL_TAG}" }
+    container_name: php2shell-eol
+    ports: ["${LAB_BIND}:8080:80"]      # bind iface via LAB_BIND in .env (default 127.0.0.1)
+    volumes:
+      - ./webapp:/var/www/html:ro            # identical app on all three; only PHP differs
+      - ./logs/eol:/var/log/apache2          # raw HTTP capture (mod_dumpio) for WAF rule dev
+    restart: "no"              # throwaway lab: only runs when you explicitly bring it up
+
+  php-outdated:
+    build:
+      context: ./images/outdated
+      args: { PHP_TAG: "${OLD_TAG}" }
+    container_name: php2shell-outdated
+    ports: ["${LAB_BIND}:8081:80"]      # bind iface via LAB_BIND in .env
+    volumes:
+      - ./webapp:/var/www/html:ro
+      - ./logs/outdated:/var/log/apache2     # raw HTTP capture (mod_dumpio) for WAF rule dev
+    restart: "no"              # throwaway lab: only runs when you explicitly bring it up
+
+  php-patched:
+    build:
+      context: ./images/patched
+      args: { PHP_TAG: "${PATCHED_TAG}" }
+    container_name: php2shell-patched
+    ports: ["${LAB_BIND}:8082:80"]      # bind iface via LAB_BIND in .env
+    volumes:
+      - ./webapp:/var/www/html:ro
+      - ./logs/patched:/var/log/apache2      # raw HTTP capture (mod_dumpio) for WAF rule dev
+    restart: "no"              # throwaway lab: only runs when you explicitly bring it up

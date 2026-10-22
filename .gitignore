@@ -1,0 +1,20 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+# ...but DO track the checked-in reference log samples (not runtime capture)
+!scan/sample-logs/*.log
+
+# Local overrides
+.env.local
+docker-compose.override.yml
+
+# Lab raw-capture output (per-version Apache logs + checker request log)
+logs/eol/
+logs/outdated/
+logs/patched/
+logs/checker-requests.log
+
+# Python bytecode
+__pycache__/
+*.pyc

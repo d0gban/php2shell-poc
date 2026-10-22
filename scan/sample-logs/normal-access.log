@@ -1,0 +1,29 @@
+# === SAMPLE: normal / legitimate traffic (labcap access log) ======================
+# This is what BORING looks like. Learn it first — it is your baseline.
+# Fields: <IP> <time> "<req>" <status> <bytes> ct=<req-Content-Type> len=<req-Content-Length> ua=<User-Agent> xff=<X-Forwarded-For>
+# All IPs are RFC 5737 documentation ranges. Not a real capture.
+#
+# -- an ordinary browser visit (GET, no body -> ct/len are "-") --------------------
+198.51.100.23 2026-10-22T09:14:02 "GET / HTTP/1.1" 200 2090 ct="-" len="-" ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0 Safari/537.36" xff="-"
+198.51.100.23 2026-10-22T09:14:02 "GET /assets/style.css HTTP/1.1" 200 4820 ct="-" len="-" ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0 Safari/537.36" xff="-"
+198.51.100.23 2026-10-22T09:14:03 "GET /assess.php HTTP/1.1" 200 5130 ct="-" len="-" ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0 Safari/537.36" xff="-"
+198.51.100.23 2026-10-22T09:14:03 "GET /favicon.ico HTTP/1.1" 404 489 ct="-" len="-" ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0 Safari/537.36" xff="-"
+#
+# -- a monitoring / uptime check ---------------------------------------------------
+203.0.113.10 2026-10-22T09:15:00 "GET /assess.php?format=json HTTP/1.1" 200 412 ct="-" len="-" ua="UptimeRobot/2.0 (+https://uptimerobot.com)" xff="-"
+#
+# -- a LEGITIMATE multipart upload (this is normal! real apps do this) -------------
+#    Note: multipart/form-data, but it goes to a real upload route, is a sane size,
+#    has a normal User-Agent, and carries NO PHP_SESSION_UPLOAD_PROGRESS field.
+#    This is exactly the traffic your allow-list (rule 1000090) must protect.
+198.51.100.44 2026-10-22T09:16:21 "POST /admin/media/upload HTTP/1.1" 200 318 ct="multipart/form-data; boundary=----WebKitFormBoundaryAbc123" len=184522 ua="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Safari/605.1" xff="-"
+198.51.100.44 2026-10-22T09:16:25 "POST /checkout HTTP/1.1" 200 1640 ct="application/x-www-form-urlencoded" len=612 ua="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Safari/605.1" xff="-"
+#
+# -- API client behind a load balancer (xff populated) -----------------------------
+192.0.2.7 2026-10-22T09:18:40 "GET /assess.php?format=json HTTP/1.1" 200 412 ct="-" len="-" ua="python-requests/2.31.0" xff="198.51.100.200"
+#
+# WHAT MAKES THIS "NORMAL":
+#   - GETs for pages/assets; a few 404s for favicon etc. are routine.
+#   - The one multipart POST is to a real upload route, normal size, normal UA,
+#     and has NO PHP_SESSION_UPLOAD_PROGRESS field. Do NOT block this.
+#   - No scanner User-Agents, no /.env or /server-status probing, no oversized bodies.

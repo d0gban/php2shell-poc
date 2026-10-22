@@ -1,0 +1,48 @@
+# === SAMPLE: PHP2Shell kill chain (labcap access log, as seen on the APP side) ====
+# This is what an attack looks like on the target's own access log — i.e. what you
+# would find reviewing a server that was probed/hit (no WAF, or WAF in DetectionOnly).
+# Attacker IP 203.0.113.50 across all stages. RFC 5737 docs IPs. Not a real capture.
+# Fields: <IP> <time> "<req>" <status> <bytes> ct=<req-Content-Type> len=<req-Content-Length> ua=<User-Agent> xff=<X-Forwarded-For>
+#
+# --------------------------------------------------------------------------------
+# STAGE 1 — PASSIVE RECON  (reading banners; looks almost like normal traffic)
+# Tell: a HEAD/GET of "/" whose ONLY purpose is to read the Server/X-Powered-By
+# version tokens. Low volume, no payload. Often a scripted client (curl).
+# --------------------------------------------------------------------------------
+203.0.113.50 2026-10-22T14:01:03 "HEAD / HTTP/1.1" 200 0 ct="-" len="-" ua="curl/8.4.0" xff="-"
+203.0.113.50 2026-10-22T14:01:04 "GET / HTTP/1.1" 200 2090 ct="-" len="-" ua="curl/8.4.0" xff="-"
+203.0.113.50 2026-10-22T14:01:06 "GET /nonexistent-404-probe HTTP/1.1" 404 489 ct="-" len="-" ua="curl/8.4.0" xff="-"
+#   ^ the 404 is probed on purpose: Apache's own error page still leaks
+#     "Server: Apache/2.4.x (Debian) OpenSSL/3.x PHP/8.0.30" when ServerTokens=Full.
+#
+# --------------------------------------------------------------------------------
+# STAGE 2 — ACTIVE RECON  (scanner tooling; recognisable UA + sensitive paths)
+# Tell: scanner User-Agents, probing /.env /server-status, and the version endpoint.
+# This is noisy and high-signal — easiest stage to block.
+# --------------------------------------------------------------------------------
+203.0.113.50 2026-10-22T14:03:11 "GET /assess.php?format=json HTTP/1.1" 200 412 ct="-" len="-" ua="nuclei/3.2.1" xff="-"
+203.0.113.50 2026-10-22T14:03:12 "GET /.env HTTP/1.1" 404 489 ct="-" len="-" ua="whatweb/0.5.5" xff="-"
+203.0.113.50 2026-10-22T14:03:12 "GET /server-status HTTP/1.1" 403 420 ct="-" len="-" ua="nikto/2.5.0" xff="-"
+203.0.113.50 2026-10-22T14:03:13 "GET /.git/config HTTP/1.1" 404 489 ct="-" len="-" ua="feroxbuster/2.10" xff="-"
+203.0.113.50 2026-10-22T14:03:13 "GET /wp-login.php HTTP/1.1" 404 489 ct="-" len="-" ua="-" xff="-"
+#   ^ note the empty ua="-" on the last line — many quick checker scripts omit a UA.
+#
+# --------------------------------------------------------------------------------
+# STAGE 3 — EXPLOITATION  (the PHP2Shell request shape)
+# Tell: multipart/form-data POST carrying PHP_SESSION_UPLOAD_PROGRESS, large len=,
+# and/or an oversized single field. On a VULNERABLE host it may return 200 here —
+# a 200 does NOT mean "safe"; correlate with the crash evidence in error.log.
+# --------------------------------------------------------------------------------
+203.0.113.50 2026-10-22T14:05:40 "POST /index.php HTTP/1.1" 200 38 ct="multipart/form-data; boundary=----x9f2" len=1162 ua="-" xff="-"
+#   ^ small, first-touch probe: PHP_SESSION_UPLOAD_PROGRESS present (see modsec-alerts.log rule 1000120)
+203.0.113.50 2026-10-22T14:05:52 "POST /index.php HTTP/1.1" 200 38 ct="multipart/form-data; boundary=----x9f2" len=66180 ua="-" xff="-"
+#   ^ oversized field (~64KB) — exercises the memory/OOM path (rule 1000130)
+203.0.113.50 2026-10-22T14:06:03 "POST /index.php HTTP/1.1" 500 0 ct="multipart/form-data; boundary=----x9f2" len=66180 ua="-" xff="-"
+#   ^ a 500 / dropped response right after repeated identical multipart POSTs is a
+#     RED FLAG — the worker likely crashed (see post-exploitation-error.log).
+203.0.113.50 2026-10-22T14:06:04 "POST /index.php HTTP/1.1" 200 38 ct="multipart/form-data; boundary=----x9f2" len=66180 ua="-" xff="-"
+#   ^ retried on a fresh worker — repetition on ONE session/path is part of the tell.
+#
+# COMPARE TO normal-access.log: the attacker's multipart POSTs hit /index.php (not a
+# real upload route), carry PHP_SESSION_UPLOAD_PROGRESS, have an empty UA, repeat on
+# one path, and sit next to 500s/crashes. That cluster is the exploitation signature.
