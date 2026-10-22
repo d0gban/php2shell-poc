@@ -1,12 +1,8 @@
-# EOL image — PHP 8.0 (end-of-life, unsupported). Exposed to PHP2Shell, no upstream fix.
+# EOL target — PHP 8.0 (end-of-life). Genuinely affected by PHP2Shell; no upstream fix.
+# Uses PHP's stock production php.ini (the configuration real deployments ship with),
+# so this is an authentic production-shaped target, not a tuned-for-PoC setup.
 ARG PHP_TAG=8.0-apache
 FROM php:${PHP_TAG}
-
 LABEL lab="php2shell-poc" role="eol-vulnerable"
-
-# Vulnerable-config reference: leave session.upload_progress ENABLED (PHP default),
-# which PHP flags as an interim-mitigation knob for PHP2Shell.
-RUN printf 'session.upload_progress.enabled = 1\n' > /usr/local/etc/php/conf.d/zz-lab.ini \
- && a2enmod rewrite >/dev/null 2>&1 || true
-
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 EXPOSE 80

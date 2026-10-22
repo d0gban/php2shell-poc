@@ -27,31 +27,33 @@ any site on an affected runtime is exposed. PHP rates the risk **highest for Apa
   minimal source backports referenced for 7.4 / 8.0 / 8.1) or migrate to a supported branch.
 - **Affected SAPIs:** `mod_php` (highest risk), PHP-FPM, php-cgi, FrankenPHP, LiteSpeed.
 
-## 3. Demonstrated impact (this lab)
+## 3. Demonstrated exposure (this lab)
 
-The lab serves one identical web application on three runtimes. Scanner output
+The lab serves one identical web application on three real PHP runtimes. Scanner output
 (`bash scan/check.sh`) produces evidence of the form:
 
 ```
-ROLE       PORT   PHP        STATUS           FOOTHLD FIXED-IN
----------------------------------------------------------------------------------
-EOL        8080   8.0.x      EOL_UNSUPPORTED  yes     none (EOL)
-OUTDATED   8081   8.3.10     VULNERABLE       yes     8.3.36
-PATCHED    8082   8.3.x      PATCHED          no      8.3.36
+ROLE       PORT   PHP        STATUS           FIXED-IN
+-----------------------------------------------------------------
+EOL        8080   8.0.x      EOL_UNSUPPORTED  none (EOL)
+OUTDATED   8081   8.3.10     VULNERABLE       8.3.36
+PATCHED    8082   8.3.x      PATCHED          8.3.36
 ```
 
-- **EOL (8.0) and Outdated (8.3.10)** runtimes are exposed. The labeled post-exploitation
-  simulation (`/lab-impact/foothold.php`) illustrates the attacker's foothold: code executing as
-  `www-data`, able to read application secrets/config, install a persistent webshell, pivot, or
-  move laterally.
-- **Patched (≥ 8.3.36)** runtime is not exposed; the foothold path returns **404**.
+- **EOL (8.0) and Outdated (8.3.10)** runtimes are exposed: they run genuinely affected PHP builds
+  with no fix applied. Any site served by these runtimes is at risk regardless of its own code.
+- **Patched (≥ 8.3.36)** runtime carries the fix and is not exposed.
 
-> **Note on fidelity.** The real exploit primitive for these CVEs is not public and circulating
-> PoCs are unverified. This lab proves exposure by **version and configuration** (the verifiable
-> fact) and **simulates** the post-RCE foothold with a fixed read-only command allowlist. It does
-> not ship a weaponized exploit.
+The three hosts are authentic, production-shaped PHP targets. Their value to a defender is that
+firewall / WAF / IDS rules and detection content can be developed against a **real** vulnerable
+runtime (its banners, headers, config and error behaviour) and then validated against the patched
+baseline to keep false positives down — all in an isolated, never-deployed environment.
 
-> _Insert screenshot: `/lab-impact/foothold.php` on :8080 (foothold) vs 404 on :8082._
+> **Note on scope.** The real exploit primitive for these CVEs is not public, and this lab ships
+> **no exploit code**. It proves exposure by **version and configuration** — the verifiable facts a
+> defender acts on — and exists to stand up real affected runtimes to build and test defenses against.
+
+> _Insert screenshot: `/assess.php` VULNERABLE on :8080 vs PATCHED on :8082, or the `scan/check.sh` table._
 
 ## 4. Recommendations (priority order)
 

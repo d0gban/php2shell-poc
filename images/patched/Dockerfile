@@ -1,12 +1,7 @@
-# Patched image — current 8.3 branch (>= 8.3.36, includes the PHP2Shell fix).
-# Doubles as the remediated-config reference. The foothold simulation is NOT mounted here.
+# Patched target — current 8.3 branch (>= 8.3.36, contains the PHP2Shell fix).
+# Same stock production php.ini as the others: the fix is in the PHP code, not in config.
 ARG PHP_TAG=8.3-apache
 FROM php:${PHP_TAG}
-
 LABEL lab="php2shell-poc" role="patched"
-
-# Remediated config: apply PHP's documented interim mitigation as defense-in-depth.
-RUN printf 'session.upload_progress.enabled = 0\n' > /usr/local/etc/php/conf.d/zz-lab.ini \
- && a2enmod rewrite >/dev/null 2>&1 || true
-
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 EXPOSE 80

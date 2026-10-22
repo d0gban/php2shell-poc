@@ -57,10 +57,11 @@ code { background: #000; padding: 1px 5px; border-radius: 4px; font-size: .88em;
 .foot { border-top: 1px solid var(--line); padding: 16px 20px; color: var(--muted);
   font-size: .86rem; text-align: center; }
 
-/* foothold simulation page */
+/* impact-link states + optional console styling */
 .sim-banner { background: var(--warn); color: #241a02; font-weight: 700; padding: 12px 16px;
   border-radius: 8px; margin: 16px 0; }
 .term { background: #05070c; border: 1px solid var(--line); border-radius: 10px; padding: 16px;
   font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #c8f7c8;
   white-space: pre-wrap; overflow-x: auto; }
 .term .cmd { color: #7fb0ff; } .term .meta { color: var(--muted); }
+.impact-link.ok { color: #bff0cf; }

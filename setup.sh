@@ -112,7 +112,8 @@ cat <<INFO
   Try it:
     - Landing page ....... http://localhost:8080  (and :8081, :8082)
     - Self-assessment .... http://localhost:8080/assess.php
-    - Impact simulation .. http://localhost:8080/lab-impact/foothold.php   (404 on :8082)
+    - Machine-readable ... http://localhost:8080/assess.php?format=json
+    - Patched baseline ... http://localhost:8082   (compare fingerprint vs the vulnerable hosts)
 
   Stop the lab:
     bash setup.sh --down

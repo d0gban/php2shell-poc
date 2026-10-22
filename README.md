@@ -1,12 +1,15 @@
 # PHP2Shell Patch-Management Lab — CVE-2026-109618 / CVE-2026-109619
 
-A **vulnerable-by-design** lab that hosts the same small PHP web application on **three PHP
-versions** — end-of-life, outdated, and patched — so you can demonstrate the **impact** of the
-**PHP2Shell** vulnerability pair and the **remediation** that closes it.
+A **vulnerable-by-design** lab that hosts the same small PHP web application on **three real PHP
+versions** — end-of-life, outdated, and patched. It gives blue teams an authentic, production-shaped
+PHP target running genuinely affected builds, so you can profile the real server fingerprint and
+**develop and test firewall / WAF and detection rules** for the **PHP2Shell** vulnerability pair —
+against real PHP, not an artificial stand-in, and without touching production.
 
-> ⚠️ **Scope & ethics.** This is an isolated, loopback-only lab for **authorized security
-> research and patch-management demonstration**. Do **not** deploy it on any internet-facing or
-> production host, and only run it against systems you own. See the simulation disclosure below.
+> ⚠️ **Scope.** This is an isolated, loopback-only lab for **authorized, defensive security work**.
+> It is **never deployed** — spin it up, use it, tear it down. Do **not** expose it on any
+> internet-facing or shared host. It ships **no exploit code**; it is a target/reference environment,
+> not an attack toolkit.
 
 ## The vulnerability (disclosed 2026-10-21)
 
@@ -70,21 +73,19 @@ docker compose down         # or:  make down
   banner and a VULNERABLE / PATCHED badge.
 - **`/assess.php`** — self-assessment: version→CVE verdict + an interim-mitigation config audit.
   Add `?format=json` for machine-readable output (used by the scanner).
-- **`/lab-impact/foothold.php`** — **labeled post-exploitation simulation**, present only on the
-  vulnerable containers. On the patched container this path returns **404**.
 
-## ⚠️ Simulation disclosure (read this)
+The point is the **runtime underneath** the app. Each host runs a real PHP build and advertises it the
+way a production server does (`Server` / `X-Powered-By`, error pages, default config), giving you an
+authentic fingerprint to tune firewall / WAF / IDS rules against.
 
-The **real exploit primitive for CVE-2026-109618 / CVE-2026-109619 is not public**, and circulating
-proof-of-concept code is unverified. This lab therefore does **not** ship a working memory-corruption
-exploit. It demonstrates impact in two honest, verifiable layers:
+## No exploit code
 
-1. **Version-based exposure** — the provable fact of which runtime is affected vs patched, plus
-   mitigation-config state (`/assess.php`, `scan/check.sh`).
-2. **Simulated foothold** — `foothold.php` stands in for the access an attacker holds *after* RCE.
-   It runs a **fixed, read-only command allowlist** (`id`, `hostname`, `uname -a`, `php -v`,
-   `ls`) with **no user-controlled command parameter**, so it proves "code runs as `www-data`"
-   without being a reusable webshell.
+This lab ships **no exploit, PoC, or post-exploitation tooling** — by design. The real exploit
+primitive for CVE-2026-109618 / CVE-2026-109619 is not public, and this lab does not need it: its job
+is to stand up **genuinely affected PHP runtimes** so defensive rules can be built and validated
+against the real thing. Exposure is established by the provable facts a blue team actually works from —
+which PHP build is running (version → CVE verdict) and its mitigation-config state — via `/assess.php`
+and `scan/check.sh`.
 
 ## Swapping versions
 
@@ -103,7 +104,6 @@ A ready-to-adapt impact & remediation write-up is in [`docs/remediation.md`](doc
 docker-compose.yml   .env   Makefile   README.md
 images/{eol,outdated,patched}/Dockerfile
 webapp/{index.php,assess.php,includes/{cve.php,layout.php},assets/style.css}
-lab-impact/foothold.php
 scan/check.sh
 docs/remediation.md
 ```

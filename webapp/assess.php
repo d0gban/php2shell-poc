@@ -5,22 +5,20 @@ $verdict     = php2shell_verdict(PHP_VERSION);
 $mitigations = php2shell_mitigations();
 $sapi        = php2shell_sapi_context();
 $vulnerable  = in_array($verdict['status'], ['VULNERABLE', 'EOL_UNSUPPORTED'], true);
-$footholdAvailable = is_file(__DIR__ . '/lab-impact/foothold.php');
 
 // Machine-readable output for the host scanner.
 if (($_GET['format'] ?? '') === 'json') {
     header('Content-Type: application/json');
     echo json_encode([
-        'php_version'         => PHP_VERSION,
-        'status'              => $verdict['status'],
-        'vulnerable'          => $vulnerable,
-        'branch'              => $verdict['branch'],
-        'fixed_in'            => $verdict['fixed_in'],
-        'cves'                => $verdict['cves'],
-        'reason'              => $verdict['reason'],
-        'sapi'                => $sapi,
-        'mitigations'         => $mitigations,
-        'foothold_simulation' => $footholdAvailable,
+        'php_version'  => PHP_VERSION,
+        'status'       => $verdict['status'],
+        'vulnerable'   => $vulnerable,
+        'branch'       => $verdict['branch'],
+        'fixed_in'     => $verdict['fixed_in'],
+        'cves'         => $verdict['cves'],
+        'reason'       => $verdict['reason'],
+        'sapi'         => $sapi,
+        'mitigations'  => $mitigations,
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -43,35 +41,41 @@ render_header('Security Self-Check');
 </section>
 
 <section class="panel">
-  <h3>Interim mitigation audit</h3>
+  <h3>Attack-surface preconditions</h3>
+  <p>CVE-2026-109618 is reached through PHP's <code>session.upload_progress</code> handling. The
+     table shows this runtime's live configuration — these are the real defaults it ships with, not
+     lab tuning. A patched runtime is safe even with the feature enabled, because the fix is in code.</p>
   <table class="grid">
-    <thead><tr><th>Setting</th><th>Current</th><th>Recommended</th><th>State</th></tr></thead>
+    <thead><tr><th>Setting</th><th>Current</th><th>Interim-mitigation value</th><th>State</th></tr></thead>
     <tbody>
     <?php foreach ($mitigations as $m): ?>
       <tr>
         <td><code><?= htmlspecialchars($m['key']) ?></code><br><span class="muted"><?= htmlspecialchars($m['note']) ?></span></td>
         <td><?= htmlspecialchars($m['value']) ?></td>
         <td><?= htmlspecialchars($m['recommended']) ?></td>
-        <td><?= $m['ok'] ? '<span class="badge good">OK</span>' : '<span class="badge bad">REVIEW</span>' ?></td>
+        <td><?= $m['ok'] ? '<span class="badge good">OK</span>' : '<span class="badge bad">EXPOSED</span>' ?></td>
       </tr>
     <?php endforeach; ?>
     </tbody>
   </table>
-  <p class="muted">Mitigations reduce exposure but are <strong>not</strong> a substitute for patching the PHP runtime.</p>
+  <p class="muted">Interim mitigations reduce exposure but are <strong>not</strong> a substitute for patching the PHP runtime.</p>
 </section>
 
-<?php if ($vulnerable && $footholdAvailable): ?>
+<?php if ($vulnerable): ?>
 <section class="panel danger">
-  <h3>Demonstrated impact</h3>
-  <p>This runtime is exposed. The lab includes a clearly-labeled
-     <a href="/lab-impact/foothold.php">post-exploitation simulation</a> showing the attacker's
-     code-execution context (as <code>www-data</code>) after a successful PHP2Shell RCE.</p>
+  <h3>Blue-team reference target</h3>
+  <p>This is a genuinely affected, production-shaped PHP runtime on
+     <code>http://localhost:<?= htmlspecialchars((string)($_SERVER['SERVER_PORT'] ?? '')) ?></code>.
+     Use it to capture the real server fingerprint (banners, <code>Server</code> / <code>X-Powered-By</code>
+     headers, error behaviour) and to develop and test firewall / WAF and detection rules against an
+     authentic vulnerable build. Compare against the patched host (:8082) to keep false positives down.</p>
 </section>
-<?php elseif (!$vulnerable): ?>
+<?php else: ?>
 <section class="panel ok">
-  <h3>Remediated</h3>
-  <p>This runtime is patched. The post-exploitation simulation is <strong>absent</strong> on this
-     container — requesting <code>/lab-impact/foothold.php</code> returns 404.</p>
+  <h3>Patched baseline</h3>
+  <p>This runtime includes the PHP2Shell fix. Use it as the known-good baseline: rules tuned on the
+     affected hosts should <em>not</em> fire here, which is how you confirm they target the vulnerability
+     and not just &ldquo;any PHP server&rdquo;.</p>
 </section>
 <?php endif; ?>
 <?php
