@@ -37,12 +37,12 @@ ROLE       PORT   PHP        STATUS           FIXED-IN
 -----------------------------------------------------------------
 EOL        8080   8.0.x      EOL_UNSUPPORTED  none (EOL)
 OUTDATED   8081   8.4.26     VULNERABLE       8.4.27
-PATCHED    8082   8.3.x      PATCHED          8.3.36
+PATCHED    8082   8.4.27     PATCHED          8.4.27
 ```
 
 - **EOL (8.0) and Outdated (8.4.26)** runtimes are exposed: they run genuinely affected PHP builds
   with no fix applied. Any site served by these runtimes is at risk regardless of its own code.
-- **Patched (≥ 8.3.36)** runtime carries the fix and is not exposed.
+- **Patched (≥ 8.4.27)** runtime carries the fix and is not exposed.
 
 The three hosts are authentic, production-shaped PHP targets. Their value to a defender is that
 firewall / WAF / IDS rules and detection content can be developed against a **real** vulnerable

@@ -1,7 +1,7 @@
-# Patched target — PHP 8.3.36, the PHP2Shell fix for the 8.3 branch (released 2026-10-21).
+# Patched target — PHP 8.4.27, the PHP2Shell fix for the 8.4 branch (released 2026-10-21).
 # Same stock production php.ini and banner config as the others: the fix is in the PHP code, not
 # in config — so the patched host presents the same realistic fingerprint, only on a fixed version.
-ARG PHP_TAG=8.3.36-apache
+ARG PHP_TAG=8.4.27-apache
 FROM php:${PHP_TAG}
 LABEL lab="php2shell-poc" role="patched"
 # Production php.ini + a natural fingerprint for WAF/IDS rule testing:

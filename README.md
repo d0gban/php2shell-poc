@@ -32,7 +32,7 @@ Both are **unauthenticated** and trigger **before application code runs**. PHP r
 |-----------|------|-------------------|---------|
 | `php2shell-eol` | **8080** | `8.0.30-apache` (end-of-life) | 🔴 VULNERABLE · EOL |
 | `php2shell-outdated` | **8081** | `8.4.26-apache` (< 8.4.27) | 🔴 VULNERABLE |
-| `php2shell-patched` | **8082** | `8.3.36-apache` (= fix) | 🟢 PATCHED |
+| `php2shell-patched` | **8082** | `8.4.27-apache` (= fix) | 🟢 PATCHED |
 
 All three serve the **identical** web app (`./webapp`, mounted read-only). Only the PHP runtime
 differs — that is the whole point.

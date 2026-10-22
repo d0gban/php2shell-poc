@@ -275,7 +275,7 @@ ROLE       PORT   PHP        STATUS           FIXED-IN
 -----------------------------------------------------------------
 EOL        8080   8.0.30     EOL_UNSUPPORTED  none (EOL)
 OUTDATED   8081   8.4.26     VULNERABLE       8.4.27
-PATCHED    8082   8.3.36     PATCHED          8.3.36
+PATCHED    8082   8.4.27     PATCHED          8.4.27
 ```
 `UNREACHABLE` → the lab is not up (run `bash setup.sh` first).
 

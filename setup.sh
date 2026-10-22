@@ -80,6 +80,15 @@ esac
 printf '\n%s== PHP2Shell lab — CVE-2026-109618 / CVE-2026-109619 ==%s\n\n' "$BLD" "$RST"
 require_docker
 
+# --- clear any previous lab instances for a clean slate -----------------------
+# Every run starts fresh: stop and remove the lab's containers (and orphans from a
+# renamed/removed service) so no stale instance keeps running on a port or serves
+# an outdated image. Logs live in host bind-mounts, so they survive this teardown.
+say ""
+say "${CYN}Clearing previous lab instances...${RST}"
+$DC down --remove-orphans >/dev/null 2>&1 || true
+ok "Previous containers cleared."
+
 say ""
 say "${CYN}Building and starting 3 containers (first run pulls PHP images)...${RST}"
 mkdir -p logs/eol logs/outdated logs/patched   # host mount dirs for raw HTTP capture
