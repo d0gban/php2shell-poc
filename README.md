@@ -101,6 +101,11 @@ That full fingerprint is the point for a blue team: the PHP build is observable 
 patched hosts alike, so you can tune version-detection / WAF rules on *which* PHP build is running,
 then confirm they don't fire on the patched baseline.
 
+**Not convinced the headers are real?** Prove it — `bash scan/verify.sh` checks, per container, that
+the `Server` / `X-Powered-By` values come from the live Apache/PHP/OpenSSL runtime (matching the real
+binaries and the mod_php version, leaking on Apache's own 404, absent on static files) rather than
+being faked by a `header()` call in the app.
+
 ## No exploit code
 
 This lab ships **no exploit, PoC, or post-exploitation tooling** — by design. The real exploit
