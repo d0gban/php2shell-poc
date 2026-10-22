@@ -1,0 +1,8 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+
+# Local overrides
+.env.local
+docker-compose.override.yml

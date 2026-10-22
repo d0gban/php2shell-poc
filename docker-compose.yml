@@ -1,0 +1,35 @@
+# PHP2Shell (CVE-2026-109618 / CVE-2026-109619) patch-management lab.
+# One command:  docker compose up --build -d
+# URLs:  EOL http://localhost:8080  |  Outdated http://localhost:8081  |  Patched http://localhost:8082
+services:
+  php-eol:
+    build:
+      context: ./images/eol
+      args: { PHP_TAG: "${EOL_TAG}" }
+    container_name: php2shell-eol
+    ports: ["8080:80"]
+    volumes:
+      - ./webapp:/var/www/html:ro            # shared app (identical on all three)
+      - ./lab-impact:/var/www/html/lab-impact:ro   # foothold simulation (vuln only)
+    restart: unless-stopped
+
+  php-outdated:
+    build:
+      context: ./images/outdated
+      args: { PHP_TAG: "${OLD_TAG}" }
+    container_name: php2shell-outdated
+    ports: ["8081:80"]
+    volumes:
+      - ./webapp:/var/www/html:ro
+      - ./lab-impact:/var/www/html/lab-impact:ro   # foothold simulation (vuln only)
+    restart: unless-stopped
+
+  php-patched:
+    build:
+      context: ./images/patched
+      args: { PHP_TAG: "${PATCHED_TAG}" }
+    container_name: php2shell-patched
+    ports: ["8082:80"]
+    volumes:
+      - ./webapp:/var/www/html:ro            # NOTE: no lab-impact mount -> foothold absent (404)
+    restart: unless-stopped
