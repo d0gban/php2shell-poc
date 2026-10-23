@@ -39,10 +39,9 @@ and `scan/sync-webapp.sh` generates a per-target read-only copy for each host
 (`webapp-eol`, `webapp-outdated`, `webapp-patched`, all `.gitignore`'d build artifacts) that the
 containers mount. `setup.sh` and `make up` run the sync automatically before `docker compose up`.
 
-So edit **`./webapp`**, never the generated copies. The trees start identical ("only the PHP runtime
-differs"); the sole deliberate divergence is applied by the sync script — the `:8081` repro host gets a
-blanked `index.php` (heap-clean repro) while `:8080`/`:8082` keep the full landing page. Add any further
-per-target overlay in `scan/sync-webapp.sh`, explicitly.
+So edit **`./webapp`**, never the generated copies. The three trees are **identical** ("only the PHP
+runtime differs") — there is no per-target divergence. If you ever need one, add it as an explicit
+overlay in `scan/sync-webapp.sh` so the difference lives in one visible place.
 
 > Per-target PHP trigger config has an intentional split: the **EOL** image *bakes* its PHP2Shell
 > trigger settings + prefork into the Dockerfile (a self-contained always-vulnerable host), while
@@ -109,8 +108,9 @@ It is an Apache MPM setting, not a `php.ini` directive. For a deterministic sing
 > (`:8080`) and patched (`:8082`) hosts stay as the matrix for comparison. Run `bash setup.sh --stock`
 > (stock production config) so `:8081` is on the genuine `php.ini-production` baseline, then drive the
 > repro at `http://<host>:8081`. Optional, and *not* a config change: the extra LFI/login app code can
-> perturb the heap — for the cleanest repro, blank `webapp-outdated/index.php` (or serve a minimal page)
-> so only the runtime is under test. This now touches `:8081` only; `:8080` and `:8082` keep their app.
+> perturb the heap — for the cleanest repro, serve a minimal page so only the runtime is under test. The
+> three trees are identical, so either blank the shared `./webapp/index.php` (affects all three for that
+> session) or add a temporary outdated-only overlay in `scan/sync-webapp.sh`.
 
 ```bash
 docker compose up --build -d
@@ -196,11 +196,15 @@ and `scan/check.sh`.
 rules. It sends the PHP2Shell request *signature*: an unauthenticated multipart upload carrying the
 `PHP_SESSION_UPLOAD_PROGRESS` marker (a normal, documented PHP field), plus a `control` request that
 a good rule must leave alone. The probes carry no memory-corruption primitive, offsets or command
-payload — they cannot achieve RCE against any target.
+payload — they cannot achieve RCE against any target. For every probe it prints the **actual request**
+(line, headers, and the multipart **body** where `PHP_SESSION_UPLOAD_PROGRESS` is visible), the
+**actual response** (status + `Server`/`X-Powered-By` + body snippet), and a per-target **summary table**
+of the **current** response vs. the response a tuned WAF **should** give.
 
 ```bash
-bash scan/wafprobe.sh sig                        # baseline: probe the lab directly (no WAF) -> all 200
-TARGET=http://waf.local:80 bash scan/wafprobe.sh sig   # probe THROUGH your WAF -> "sig" should be blocked
+bash scan/wafprobe.sh sig                        # baseline: probe the lab directly (no WAF) -> CURRENT all 200
+TARGET=http://waf.local:80 bash scan/wafprobe.sh sig   # through your WAF -> "sig" CURRENT should become 403
+bash scan/wafprobe.sh stages                      # full kill-chain (passive/active recon + exploitation)
 ```
 
 A tuned rule blocks the `sig` / `sig-name` probes (403/406/501/reset) while leaving `control` at 200.

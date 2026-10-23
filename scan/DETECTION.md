@@ -307,35 +307,56 @@ bash scan/wafprobe.sh sig
 # through a WAF:
 TARGET=http://your-waf bash scan/wafprobe.sh sig
 ```
-Expected **baseline** (no WAF — all `200`), one block per target:
+Each probe prints the **actual request** (line, headers, body — the multipart body
+is where you can read the literal `PHP_SESSION_UPLOAD_PROGRESS` detection string),
+the **actual response** (status + `Server`/`X-Powered-By`/`Content-Type` + a body
+snippet), and a per-probe `CURRENT | EXPECTED` line. Example `sig` probe:
 ```
-=== TARGET http://127.0.0.1:8080 ===================================================
-    control                    HTTP 200
-    sig                        HTTP 200
-    sig-name                   HTTP 200
+  -- [sig] POST multipart + UPLOAD_PROGRESS
+     REQUEST : POST /index.php HTTP/1.1
+               Content-Type: multipart/form-data; boundary=------------------------xxxx
+               Content-Length: 419
+               body:
+                 | --------------------------xxxx
+                 | Content-Disposition: form-data; name="PHP_SESSION_UPLOAD_PROGRESS"
+                 |
+                 | wafprobe-20261023T....Z
+                 | --------------------------xxxx ...
+     RESPONSE: HTTP/1.1 200 OK
+               Server: Apache/2.4.x (Debian) OpenSSL/3.x PHP/8.4.26
+               X-Powered-By: PHP/8.4.26
+               body: OK
+     CURRENT : HTTP 200   |   EXPECTED (tuned WAF): HTTP 403 / reset — block
 ```
-Expected **behind a tuned WAF** — this is success:
+Each target ends with the **summary table** — the whole point: current state vs.
+the response a tuned WAF should give.
 ```
-=== TARGET http://your-waf ===================================================
-    control                    HTTP 200      <- legitimate, must pass
-    sig                        HTTP 403      <- attack shape, blocked
-    sig-name                   HTTP 403      <- also blocked
+  SUMMARY — current vs. expected (tuned WAF)
+  PROBE         REQUEST SHAPE                      CURRENT      EXPECTED
+  ------------------------------------------------------------------------------
+  control       GET / (ordinary)                   HTTP 200     HTTP 200 — legit, must pass
+  sig           POST multipart + UPLOAD_PROGRESS   HTTP 200     HTTP 403 / reset — block
+  sig-name      POST upload_progress_<marker> field HTTP 200    HTTP 403 / reset — block
 ```
-A `control` that becomes `403` = **too strict** (false positive) — review the
-allow-list.
+**Baseline, no WAF:** every `CURRENT` is `HTTP 200` — that is the current state, not
+a pass/fail. **Behind a tuned WAF:** drive each `sig`/`sig-name` `CURRENT` to its
+`EXPECTED` (403/reset) while `control` stays `200`. A `control` that becomes `403` =
+**too strict** (false positive) — review the allow-list.
 
 ### `wafprobe.sh stages` — "is it blocked at EVERY stage?"
 ```bash
 TARGET=http://your-waf bash scan/wafprobe.sh stages
 ```
-Expected behind a tuned WAF:
+Same per-probe request/response detail as `sig`, grouped into the three stages,
+each target ending with the summary table. Expected behind a tuned WAF:
 ```
 [1] passive  -> Server/X-Powered-By SCRUBBED (blank), enumeration alerted
 [2] active   -> scanner-UA requests = HTTP 403; "control" = HTTP 200
 [3] exploit  -> multipart / PHP_SESSION_UPLOAD_PROGRESS / oversized = HTTP 403;
-                "control GET (must pass)" = HTTP 200
+                "control" GET = HTTP 200
 ```
-Directly at the lab (no WAF) = all `200` = baseline (not a pass/fail).
+Directly at the lab (no WAF) every `CURRENT` is `200`/leaky = baseline (not a
+pass/fail); behind the WAF each `CURRENT` should match its `EXPECTED`.
 
 > **Confirm in the logs:** each script prints a unique `Marker:` string. Grep for it in
 > `logs/<role>/lab_capture.log` to prove the probe reached the app (and to see what was

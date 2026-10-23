@@ -15,12 +15,10 @@
 #   targets always exist and match the source.
 #
 # PER-TARGET OVERLAYS
-#   The three trees start identical ("only the PHP runtime differs"). The sole
-#   deliberate divergence is applied below: the OUTDATED host (:8081) is the
-#   PHP2Shell exploit repro target, and the extra app code perturbs the heap, so
-#   its index.php is blanked to a minimal page for the cleanest repro. The EOL
-#   (:8080) and patched (:8082) hosts keep the full landing page as the
-#   comparison matrix. Add further per-target overlays here, explicitly.
+#   The three trees are IDENTICAL by design — "only the PHP runtime differs".
+#   There is currently no per-target divergence. If you ever need one (e.g. a
+#   different payload on a single host), add it in the overlay section below,
+#   explicitly, so the difference is visible in one place.
 # =============================================================================
 set -euo pipefail
 
@@ -37,8 +35,6 @@ for t in $TARGETS; do
 done
 
 # --- per-target overlays -----------------------------------------------------
-# :8081 outdated = PHP2Shell repro target -> minimal index.php (heap-clean repro).
-printf '<?php echo "OK";' > webapp-outdated/index.php
+# (none — all three trees are identical. Add per-target tweaks here if ever needed.)
 
-echo "sync-webapp: generated webapp-{$(echo $TARGETS | tr ' ' ',')} from ./$SRC"
-echo "  eol/patched index.php: full landing page | outdated index.php: blanked (repro)"
+echo "sync-webapp: generated webapp-{$(echo $TARGETS | tr ' ' ',')} from ./$SRC (identical trees)"
