@@ -133,9 +133,9 @@ ok "Previous containers cleared."
 
 say ""
 if [ "$PROFILE" = "stock" ]; then
-  ok "Config profile: ${BLD}stock${RST} (php.ini-production baseline — $PHP_TUNE_INI)"
+  ok "Config profile: ${BLD}stock${RST} (php.ini-production COMPARISON baseline — $PHP_TUNE_INI). Not the exploit profile; use --tuned for the PoC repro."
 else
-  warn "Config profile: ${BLD}tuned${RST} (deliberately weakened — $PHP_TUNE_INI). Use --stock for the baseline."
+  warn "Config profile: ${BLD}tuned${RST} (deliberately weakened — $PHP_TUNE_INI). This is the PHP2Shell PoC repro profile (matches its preconditions + single-worker prefork)."
 fi
 say "${CYN}Building and starting 3 containers (first run pulls PHP images)...${RST}"
 bash scan/sync-webapp.sh                        # generate webapp-{eol,outdated,patched}/ from ./webapp

@@ -97,20 +97,22 @@ changes between `--stock` and `--tuned`. For the manual path, set `PHP_TUNE_INI`
   For the **byte-exact** upstream file, run `bash config/fetch-stock-ini.sh` (needs Docker; pulls it
   from the pinned `OLD_TAG` image).
 
-**Apache prefork MPM.** `config/mpm-prefork.conf` is mounted into every container and sets
-`MaxRequestWorkers 150` with `MaxConnectionsPerChild 0` (workers never recycled) — the official
-prefork model the PHP2Shell worker-reuse vector (CVE-2026-109619, stale per-worker state) relies on.
-It is an Apache MPM setting, not a `php.ini` directive. For a deterministic single-worker repro, set
-`MaxRequestWorkers 1` / `ServerLimit 1` there instead (no longer the "official prefork 150" scenario).
+**Apache prefork MPM.** `config/mpm-prefork.conf` is mounted into every container and sets a
+**single prefork worker** (`MaxRequestWorkers 1` / `ServerLimit 1`) with `MaxConnectionsPerChild 0`
+(worker never recycled). The PHP2Shell PoC (9bie / OffSec) needs its staged heap-leak chain to land
+every request on the same long-lived process with a stable address space — multiple workers scatter
+the requests and break it. It is an Apache MPM setting, not a `php.ini` directive. For a many-worker
+scenario (worker-pinning / connection-holding tests) raise `MaxRequestWorkers` + `ServerLimit` (e.g.
+150) — but that is not the PoC's model.
 
-> **For the PHP2Shell exploit repro:** the target is the **OUTDATED host on `:8081`** — exactly
-> **PHP 8.4.26 + Apache prefork + mod_php** (`apache2handler`) with `MaxRequestWorkers 150`. The EOL
-> (`:8080`) and patched (`:8082`) hosts stay as the matrix for comparison. Run `bash setup.sh --stock`
-> (stock production config) so `:8081` is on the genuine `php.ini-production` baseline, then drive the
-> repro at `http://<host>:8081`. Optional, and *not* a config change: the extra LFI/login app code can
-> perturb the heap — for the cleanest repro, serve a minimal page so only the runtime is under test. The
-> three trees are identical, so either blank the shared `./webapp/index.php` (affects all three for that
-> session) or add a temporary outdated-only overlay in `scan/sync-webapp.sh`.
+> **For the PHP2Shell exploit repro:** the target is the **OUTDATED host on `:8081`** — **PHP 8.4.26 +
+> single-worker prefork + mod_php** (`apache2handler`). The EOL (`:8080`) and patched (`:8082`) hosts
+> stay as the matrix for comparison. Use the **default (`--tuned`) profile** — it carries the PoC's exact
+> preconditions (`display_errors=1`, `memory_limit=8M`, `max_input_vars=1000`, `use_cookies=1`,
+> `use_strict_mode=0`, `upload_progress.enabled=1`). **Do not use `--stock`** for the exploit: the
+> `php.ini-production` baseline (`display_errors=Off`, `memory_limit=128M`) does not meet the PoC's heap
+> layout. `--stock` is the production-baseline comparison, where the version bug exists but this PoC's
+> specific layout does not line up. Drive the repro at `http://<host>:8081`.
 
 ```bash
 docker compose up --build -d
