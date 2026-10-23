@@ -185,6 +185,12 @@ do_stages(){
     send "oversized"  "POST UPLOAD_PROGRESS + 64KB field" "$EXP_BLOCK" "$url/index.php" \
         -F "PHP_SESSION_UPLOAD_PROGRESS=${MARKER}" \
         -F "bigfield=${BIGFIELD}"
+    # FP canary — same literal field, but a SMALL body = legitimate upload-progress
+    # use, not the oversized attack. A tuned WAF must PASS this; a 403 here means the
+    # rule keys on the string alone (not size/shape) and is too aggressive.
+    send "benign-progress" "POST UPLOAD_PROGRESS + tiny field (legit)" "$EXP_PASS" "$url/index.php" \
+        -F "PHP_SESSION_UPLOAD_PROGRESS=${MARKER}" \
+        -F "comment=hello"
 
     table_print
   done
@@ -196,6 +202,9 @@ Reading it:
   [2] active     -> scanner-UA requests blocked (rule 1000200); "control" stays 200.
   [3] exploit    -> multipart/PHP_SESSION_UPLOAD_PROGRESS/oversized blocked
                     (rules 1000100/1000120/1000130); plain "control GET" stays 200.
+                    "benign-progress" (small body, same field) must STAY 200 — it
+                    is legit upload-progress use. A 403 there = rule keys on the
+                    string, not the oversized shape = false positive (too strict).
 Direct at the lab (no WAF) every CURRENT is 200/leaky = baseline. Behind a tuned
 WAF each CURRENT should match its EXPECTED. Confirm in logs/<role>/ by grepping
 the marker above.
