@@ -11,6 +11,7 @@ services:
     ports: ["${LAB_BIND}:8080:80"]      # bind iface via LAB_BIND in .env (default 127.0.0.1)
     volumes:
       - ./webapp:/var/www/html:ro            # identical app on all three; only PHP differs
+      - ${PHP_TUNE_INI:-./config/php2shell-tune.ini}:/usr/local/etc/php/conf.d/zz-php2shell-tune.ini:ro  # config profile (setup.sh --stock|--tuned); overrides php.ini-production
       - ./logs/eol:/var/log/apache2          # raw HTTP capture (mod_dumpio) for WAF rule dev
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
 
@@ -22,6 +23,7 @@ services:
     ports: ["${LAB_BIND}:8081:80"]      # bind iface via LAB_BIND in .env
     volumes:
       - ./webapp:/var/www/html:ro
+      - ${PHP_TUNE_INI:-./config/php2shell-tune.ini}:/usr/local/etc/php/conf.d/zz-php2shell-tune.ini:ro  # config profile (setup.sh --stock|--tuned); overrides php.ini-production
       - ./logs/outdated:/var/log/apache2     # raw HTTP capture (mod_dumpio) for WAF rule dev
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
 
@@ -33,5 +35,6 @@ services:
     ports: ["${LAB_BIND}:8082:80"]      # bind iface via LAB_BIND in .env
     volumes:
       - ./webapp:/var/www/html:ro
+      - ${PHP_TUNE_INI:-./config/php2shell-tune.ini}:/usr/local/etc/php/conf.d/zz-php2shell-tune.ini:ro  # config profile (setup.sh --stock|--tuned); overrides php.ini-production
       - ./logs/patched:/var/log/apache2      # raw HTTP capture (mod_dumpio) for WAF rule dev
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up

@@ -68,6 +68,18 @@ bash setup.sh
 answers, and prints an info panel with ports, PHP states, URLs and live verdicts. Stop with
 `bash setup.sh --down`. (Equivalent manual path below.)
 
+**Config profile.** All three hosts mount one shared PHP config so the only variable is the PHP
+version. Pick which config via a flag:
+
+```bash
+bash setup.sh            # --tuned (default): config/php2shell-tune.ini — deliberately weakened
+bash setup.sh --stock    # stock php.ini-production baseline (config/php2shell-stock.ini, a no-op)
+```
+
+Compare the two runs: `/assess.php`'s **Current config** column (Factory default · Current · Patched)
+changes between `--stock` and `--tuned`. For the manual path, set `PHP_TUNE_INI` before compose:
+`PHP_TUNE_INI=./config/php2shell-stock.ini docker compose up --build -d`.
+
 ```bash
 docker compose up --build -d
 ```
@@ -205,7 +217,9 @@ A ready-to-adapt impact & remediation write-up is in [`docs/remediation.md`](doc
 ```
 docker-compose.yml   .env   Makefile   README.md
 images/{eol,outdated,patched}/Dockerfile
-webapp/{index.php,assess.php,includes/{cve.php,layout.php},assets/style.css}
-scan/check.sh
-docs/remediation.md
+config/{php2shell-tune.ini,php2shell-stock.ini}        # shared config profiles (setup.sh --tuned|--stock)
+webapp/{index.php,assess.php,view.php,login.php,includes/{cve.php,layout.php},content/*,assets/style.css}
+scan/{check.sh,DETECTION.md,sample-logs/*}
+waf/{php2shell-virtual-patch.conf,lfi-virtual-patch.conf}
+docs/{remediation.md,lfi-remediation.md,session-fixation-remediation.md,waf-tuning.md}
 ```

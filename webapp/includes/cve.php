@@ -130,6 +130,64 @@ function php2shell_mitigations(): array {
     ];
 }
 
+/**
+ * Full runtime-config audit for the php2shell-tune.ini directives.
+ *
+ * Reports each directive three ways — the stock php.ini-production baseline the
+ * images ship from ("factory"), the LIVE value on this host ("current", read via
+ * ini_get after config/php2shell-tune.ini is applied), and the hardened target
+ * ("patched"). `ok` is set only for the security-relevant directives; the rest
+ * are informational. Reads config only — it performs no exploitation.
+ *
+ * @return array<int,array{key:string,factory:string,current:string,patched:string,ok:?bool,note:string}>
+ */
+function php2shell_config_audit(): array {
+    // Truthy test for an ini flag value as returned by ini_get().
+    $on = static function ($v): bool {
+        return !($v === '' || $v === '0' || $v === false || $v === null || strtolower((string) $v) === 'off');
+    };
+    $onoff = static function ($v) use ($on): string { return $on($v) ? 'On (1)' : 'Off (0)'; };
+
+    $er    = (int) ini_get('error_reporting');
+    $erStr = $er === E_ALL ? 'E_ALL' : (string) $er;
+
+    return [
+        ['key' => 'display_errors', 'factory' => 'Off', 'current' => $onoff(ini_get('display_errors')),
+         'patched' => 'Off', 'ok' => !$on(ini_get('display_errors')),
+         'note' => 'On leaks path / SQL / LFI errors to the client. Off in production.'],
+        ['key' => 'display_startup_errors', 'factory' => 'Off', 'current' => $onoff(ini_get('display_startup_errors')),
+         'patched' => 'Off', 'ok' => !$on(ini_get('display_startup_errors')),
+         'note' => 'Same leak during startup. Off in production.'],
+        ['key' => 'error_reporting', 'factory' => 'E_ALL & ~E_DEPRECATED & ~E_STRICT', 'current' => $erStr,
+         'patched' => 'E_ALL & ~E_DEPRECATED & ~E_STRICT', 'ok' => null,
+         'note' => 'Verbosity level; informational. The real leak risk is display_errors, not the level.'],
+        ['key' => 'memory_limit', 'factory' => '128M', 'current' => (string) ini_get('memory_limit'),
+         'patched' => '128M (per advisory)', 'ok' => null,
+         'note' => 'Relevant to the request-cleanup corruption (CVE-2026-109618). Review per PHP guidance; do not use RLIMIT_AS / RLIMIT_DATA.'],
+        ['key' => 'post_max_size', 'factory' => '8M', 'current' => (string) ini_get('post_max_size'),
+         'patched' => '8M (cap decoded body at the edge)', 'ok' => null,
+         'note' => 'Large bodies widen the attack surface. Enforce a decoded body-size cap at the reverse proxy.'],
+        ['key' => 'upload_max_filesize', 'factory' => '2M', 'current' => (string) ini_get('upload_max_filesize'),
+         'patched' => '2M', 'ok' => null,
+         'note' => 'Large uploads widen the session.upload_progress write surface.'],
+        ['key' => 'max_input_vars', 'factory' => '1000', 'current' => (string) ini_get('max_input_vars'),
+         'patched' => '1000', 'ok' => null,
+         'note' => 'Informational; unchanged from the baseline.'],
+        ['key' => 'session.use_cookies', 'factory' => '1', 'current' => $onoff(ini_get('session.use_cookies')),
+         'patched' => '1', 'ok' => null,
+         'note' => 'Carry the session id in a cookie, not the URL.'],
+        ['key' => 'session.use_strict_mode', 'factory' => '0', 'current' => $onoff(ini_get('session.use_strict_mode')),
+         'patched' => '1', 'ok' => $on(ini_get('session.use_strict_mode')),
+         'note' => '0 lets the app adopt an attacker-chosen session id (session fixation — see login.php). Set to 1.'],
+        ['key' => 'session.upload_progress.enabled', 'factory' => '1', 'current' => $onoff(ini_get('session.upload_progress.enabled')),
+         'patched' => '0', 'ok' => !$on(ini_get('session.upload_progress.enabled')),
+         'note' => 'The PHP2Shell upload_progress write vector. PHP lists disabling it as an interim mitigation.'],
+        ['key' => 'session.upload_progress.cleanup', 'factory' => '1', 'current' => $onoff(ini_get('session.upload_progress.cleanup')),
+         'patched' => '1', 'ok' => $on(ini_get('session.upload_progress.cleanup')),
+         'note' => 'Off lets a session entry persist past its request — a precondition the attack depends on. Keep On.'],
+    ];
+}
+
 /** Server-facing exposure context (mod_php is the highest-risk SAPI). */
 function php2shell_sapi_context(): array {
     $sapi = PHP_SAPI;

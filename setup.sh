@@ -4,8 +4,14 @@
 # Builds and launches the 3-version PHP matrix, waits until each app answers,
 # then prints an info panel with ports, PHP states, URLs and live verdicts.
 #
-#   bash setup.sh            # build + start + show info
+#   bash setup.sh            # build + start (default: --tuned config profile)
+#   bash setup.sh --tuned    # apply config/php2shell-tune.ini (deliberately weakened)
+#   bash setup.sh --stock    # run on the stock php.ini-production baseline instead
 #   bash setup.sh --down     # stop and remove the lab
+#   bash setup.sh --help     # usage
+#
+# The config profile sets which .ini is mounted into every container's conf.d.
+# Compare the two: /assess.php's "Current config" column changes between them.
 # =============================================================================
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -55,8 +61,44 @@ HELP
   ok "Using: $DC"
 }
 
+# --- argument parsing ---------------------------------------------------------
+# Config profile: which .ini docker-compose mounts into each container's conf.d.
+#   tuned (default) -> ./config/php2shell-tune.ini   (deliberately weakened)
+#   stock           -> ./config/php2shell-stock.ini  (no-op; php.ini-production baseline)
+PROFILE="tuned"
+DO_DOWN=0
+usage() {
+  cat <<'USAGE'
+PHP2Shell lab — setup
+
+  bash setup.sh            build + start (default: --tuned config profile)
+  bash setup.sh --tuned    apply config/php2shell-tune.ini (deliberately weakened)
+  bash setup.sh --stock    run on the stock php.ini-production baseline instead
+  bash setup.sh --down     stop and remove the lab
+  bash setup.sh --help     this help
+
+The config profile sets which .ini is mounted into each container's conf.d.
+Compare the two: /assess.php's "Current config" column changes between them.
+USAGE
+  exit "${1:-0}"
+}
+for arg in "$@"; do
+  case "$arg" in
+    --down)          DO_DOWN=1 ;;
+    --stock)         PROFILE="stock" ;;
+    --tuned|--tune)  PROFILE="tuned" ;;
+    -h|--help)       usage 0 ;;
+    *) err "Unknown option: $arg"; usage 1 ;;
+  esac
+done
+
+case "$PROFILE" in
+  stock) export PHP_TUNE_INI="./config/php2shell-stock.ini" ;;
+  *)     export PHP_TUNE_INI="./config/php2shell-tune.ini" ;;
+esac
+
 # --- teardown -----------------------------------------------------------------
-if [ "${1:-}" = "--down" ]; then
+if [ "$DO_DOWN" = "1" ]; then
   pick_compose; [ -z "$DC" ] && { err "docker compose not found"; exit 1; }
   $DC down
   ok "Lab stopped."
@@ -90,6 +132,11 @@ $DC down --remove-orphans >/dev/null 2>&1 || true
 ok "Previous containers cleared."
 
 say ""
+if [ "$PROFILE" = "stock" ]; then
+  ok "Config profile: ${BLD}stock${RST} (php.ini-production baseline — $PHP_TUNE_INI)"
+else
+  warn "Config profile: ${BLD}tuned${RST} (deliberately weakened — $PHP_TUNE_INI). Use --stock for the baseline."
+fi
 say "${CYN}Building and starting 3 containers (first run pulls PHP images)...${RST}"
 mkdir -p logs/eol logs/outdated logs/patched   # host mount dirs for raw HTTP capture
 $DC up --build -d
