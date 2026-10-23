@@ -113,6 +113,11 @@ scenario (worker-pinning / connection-holding tests) raise `MaxRequestWorkers` +
 > `php.ini-production` baseline (`display_errors=Off`, `memory_limit=128M`) does not meet the PoC's heap
 > layout. `--stock` is the production-baseline comparison, where the version bug exists but this PoC's
 > specific layout does not line up. Drive the repro at `http://<host>:8081`.
+>
+> **Confirm the target matches the PoC profile first:** `bash scan/offsec-check.sh` (or `make offsec`)
+> prints a 4-column table — OffSec required vs. `:8080` / `:8081` / `:8082` — marking each of the 10
+> requirements `[ok]`/`[NO]`. php.ini + web SAPI come over HTTP; `max_input_vars`, MPM and worker count
+> are read via `docker exec`. Only `:8081` should match every row.
 
 ```bash
 docker compose up --build -d
@@ -257,7 +262,7 @@ docker-compose.yml   .env   Makefile   README.md
 images/{eol,outdated,patched}/Dockerfile
 config/{php2shell-tune.ini,php2shell-stock.ini,fetch-stock-ini.sh,mpm-prefork.conf,rawlog.conf}  # config profiles + Apache MPM + raw-capture
 webapp/{index.php,assess.php,view.php,login.php,includes/{cve.php,layout.php},content/*,assets/style.css}  # single source; sync-webapp.sh derives webapp-{eol,outdated,patched}/ (gitignored)
-scan/{check.sh,profile.sh,wafprobe.sh,vuln-checker.py,sync-webapp.sh,DETECTION.md,sample-logs/*}
+scan/{check.sh,offsec-check.sh,profile.sh,wafprobe.sh,vuln-checker.py,sync-webapp.sh,DETECTION.md,sample-logs/*}
 waf/{php2shell-virtual-patch.conf,lfi-virtual-patch.conf}
 docs/{remediation.md,lfi-remediation.md,session-fixation-remediation.md,waf-tuning.md}
 ```

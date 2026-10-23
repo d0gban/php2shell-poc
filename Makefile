@@ -1,5 +1,5 @@
 # PHP2Shell lab — convenience targets. Requires Docker + Docker Compose v2.
-.PHONY: up down scan logs rebuild clean check profile wafprobe rawlogs killchain sync
+.PHONY: up down scan logs rebuild clean check profile wafprobe rawlogs killchain sync offsec
 
 up: sync       ## Build + start the three-version lab
 	docker compose up --build -d
@@ -16,6 +16,9 @@ rebuild:       ## Force a clean rebuild
 
 scan:          ## Run the verdict scanner against the running lab
 	bash scan/check.sh
+
+offsec:        ## Check each host against the OffSec PoC target profile (4-col table)
+	bash scan/offsec-check.sh
 
 check:         ## Benign client-side PHP2Shell version checker (per-version verdicts)
 	python3 scan/vuln-checker.py
