@@ -91,10 +91,13 @@ prefork model the PHP2Shell worker-reuse vector (CVE-2026-109619, stale per-work
 It is an Apache MPM setting, not a `php.ini` directive. For a deterministic single-worker repro, set
 `MaxRequestWorkers 1` / `ServerLimit 1` there instead (no longer the "official prefork 150" scenario).
 
-> **For the PHP2Shell exploit repro:** run `bash setup.sh --stock` (stock production config) with the
-> prefork MPM above. Optional, and *not* a config change: the extra LFI/login app code can perturb the
-> heap — for the cleanest repro, blank `webapp/index.php` (or serve a minimal page) so only the runtime
-> is under test.
+> **For the PHP2Shell exploit repro:** the target is the **OUTDATED host on `:8081`** — exactly
+> **PHP 8.4.26 + Apache prefork + mod_php** (`apache2handler`) with `MaxRequestWorkers 150`. The EOL
+> (`:8080`) and patched (`:8082`) hosts stay as the matrix for comparison. Run `bash setup.sh --stock`
+> (stock production config) so `:8081` is on the genuine `php.ini-production` baseline, then drive the
+> repro at `http://<host>:8081`. Optional, and *not* a config change: the extra LFI/login app code can
+> perturb the heap — for the cleanest repro, blank `webapp/index.php` (or serve a minimal page) so only
+> the runtime is under test.
 
 ```bash
 docker compose up --build -d
