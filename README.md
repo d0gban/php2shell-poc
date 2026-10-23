@@ -34,8 +34,11 @@ Both are **unauthenticated** and trigger **before application code runs**. PHP r
 | `php2shell-outdated` | **8081** | `8.4.26-apache` (< 8.4.27) | 🔴 VULNERABLE |
 | `php2shell-patched` | **8082** | `8.4.27-apache` (= fix) | 🟢 PATCHED |
 
-All three serve the **identical** web app (`./webapp`, mounted read-only). Only the PHP runtime
-differs — that is the whole point.
+All three serve the **same** web app, but each from its own read-only tree
+(`./webapp-eol`, `./webapp-outdated`, `./webapp-patched`) so you can perturb one node without
+touching the others. Keep them in sync when you want "only the PHP runtime differs" — that is the
+default; diverge a single tree only for a deliberate per-target test. To reset a node, copy a known-good
+tree over it (e.g. `cp -r webapp-patched webapp-outdated`).
 
 ## Scope & boundaries
 
@@ -96,8 +99,8 @@ It is an Apache MPM setting, not a `php.ini` directive. For a deterministic sing
 > (`:8080`) and patched (`:8082`) hosts stay as the matrix for comparison. Run `bash setup.sh --stock`
 > (stock production config) so `:8081` is on the genuine `php.ini-production` baseline, then drive the
 > repro at `http://<host>:8081`. Optional, and *not* a config change: the extra LFI/login app code can
-> perturb the heap — for the cleanest repro, blank `webapp/index.php` (or serve a minimal page) so only
-> the runtime is under test.
+> perturb the heap — for the cleanest repro, blank `webapp-outdated/index.php` (or serve a minimal page)
+> so only the runtime is under test. This now touches `:8081` only; `:8080` and `:8082` keep their app.
 
 ```bash
 docker compose up --build -d
@@ -237,7 +240,7 @@ A ready-to-adapt impact & remediation write-up is in [`docs/remediation.md`](doc
 docker-compose.yml   .env   Makefile   README.md
 images/{eol,outdated,patched}/Dockerfile
 config/{php2shell-tune.ini,php2shell-stock.ini,fetch-stock-ini.sh,mpm-prefork.conf}  # config profiles + Apache MPM
-webapp/{index.php,assess.php,view.php,login.php,includes/{cve.php,layout.php},content/*,assets/style.css}
+webapp-{eol,outdated,patched}/{index.php,assess.php,view.php,login.php,includes/{cve.php,layout.php},content/*,assets/style.css}  # per-target trees (one per host)
 scan/{check.sh,DETECTION.md,sample-logs/*}
 waf/{php2shell-virtual-patch.conf,lfi-virtual-patch.conf}
 docs/{remediation.md,lfi-remediation.md,session-fixation-remediation.md,waf-tuning.md}
