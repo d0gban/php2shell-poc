@@ -34,11 +34,21 @@ Both are **unauthenticated** and trigger **before application code runs**. PHP r
 | `php2shell-outdated` | **8081** | `8.4.26-apache` (< 8.4.27) | 🔴 VULNERABLE |
 | `php2shell-patched` | **8082** | `8.4.27-apache` (= fix) | 🟢 PATCHED |
 
-All three serve the **same** web app, but each from its own read-only tree
-(`./webapp-eol`, `./webapp-outdated`, `./webapp-patched`) so you can perturb one node without
-touching the others. Keep them in sync when you want "only the PHP runtime differs" — that is the
-default; diverge a single tree only for a deliberate per-target test. To reset a node, copy a known-good
-tree over it (e.g. `cp -r webapp-patched webapp-outdated`).
+All three serve the **same** web app. There is one source — **`./webapp`** (the only tree in git) —
+and `scan/sync-webapp.sh` generates a per-target read-only copy for each host
+(`webapp-eol`, `webapp-outdated`, `webapp-patched`, all `.gitignore`'d build artifacts) that the
+containers mount. `setup.sh` and `make up` run the sync automatically before `docker compose up`.
+
+So edit **`./webapp`**, never the generated copies. The trees start identical ("only the PHP runtime
+differs"); the sole deliberate divergence is applied by the sync script — the `:8081` repro host gets a
+blanked `index.php` (heap-clean repro) while `:8080`/`:8082` keep the full landing page. Add any further
+per-target overlay in `scan/sync-webapp.sh`, explicitly.
+
+> Per-target PHP trigger config has an intentional split: the **EOL** image *bakes* its PHP2Shell
+> trigger settings + prefork into the Dockerfile (a self-contained always-vulnerable host), while
+> **outdated/patched** take their config from the mounted profile (`--stock`/`--tuned`), which is what
+> makes `:8081` the tunable repro target. Don't "unify" these without rebuilding and re-checking
+> `bash scan/profile.sh`.
 
 ## Scope & boundaries
 
@@ -55,8 +65,8 @@ patching. It is **not an exploit framework** and ships no working exploit. The l
 |-------------------------------------------|---------------------------------------------|
 | Version + config exposure audit (`/assess.php`, `scan/vuln-checker.py`) | The memory-corruption / use-after-free trigger |
 | Exposure-precondition checklist (`session.upload_progress.*`, `serialize_handler`, version) | Strategy 1: `session.upload_progress` poisoning → `include()`/`require()` (LFI) sink → RCE |
-| Benign attack-shaped detection markers (`scan/waf-test.sh`, `scan/killchain.sh`) | Strategy 2: `session.serialize_handler` mismatch → session object-injection → RCE |
-| Per-version HTTP behaviour + raw capture (`scan/behavior.sh`, `logs/`) | Any `--sink` / `--save-path` / `--write-path` payload or command-execution tooling |
+| Benign attack-shaped detection markers (`scan/wafprobe.sh` — `sig` and `stages`) | Strategy 2: `session.serialize_handler` mismatch → session object-injection → RCE |
+| Per-version HTTP behaviour + raw capture (`scan/profile.sh`, `logs/`) | Any `--sink` / `--save-path` / `--write-path` payload or command-execution tooling |
 | WAF virtual-patch rules (`waf/`) | — |
 
 Exposure here is proven by **version + configuration** — the verifiable facts a defender acts on.
@@ -166,7 +176,7 @@ That full fingerprint is the point for a blue team: the PHP build is observable 
 patched hosts alike, so you can tune version-detection / WAF rules on *which* PHP build is running,
 then confirm they don't fire on the patched baseline.
 
-**Not convinced the headers are real?** Prove it — `bash scan/verify.sh` checks, per container, that
+**Not convinced the headers are real?** Prove it — `bash scan/profile.sh verify` checks, per container, that
 the `Server` / `X-Powered-By` values come from the live Apache/PHP/OpenSSL runtime (matching the real
 binaries and the mod_php version, leaking on Apache's own 404, absent on static files) rather than
 being faked by a `header()` call in the app.
@@ -182,15 +192,15 @@ and `scan/check.sh`.
 
 ## Testing WAF / IDS rules
 
-`scan/waf-test.sh` generates **detection traffic** — not an exploit — so you can tune and validate
+`scan/wafprobe.sh` generates **detection traffic** — not an exploit — so you can tune and validate
 rules. It sends the PHP2Shell request *signature*: an unauthenticated multipart upload carrying the
 `PHP_SESSION_UPLOAD_PROGRESS` marker (a normal, documented PHP field), plus a `control` request that
 a good rule must leave alone. The probes carry no memory-corruption primitive, offsets or command
 payload — they cannot achieve RCE against any target.
 
 ```bash
-bash scan/waf-test.sh                        # baseline: probe the lab directly (no WAF) -> all 200
-TARGET=http://waf.local:80 bash scan/waf-test.sh   # probe THROUGH your WAF -> "sig" should be blocked
+bash scan/wafprobe.sh sig                        # baseline: probe the lab directly (no WAF) -> all 200
+TARGET=http://waf.local:80 bash scan/wafprobe.sh sig   # probe THROUGH your WAF -> "sig" should be blocked
 ```
 
 A tuned rule blocks the `sig` / `sig-name` probes (403/406/501/reset) while leaving `control` at 200.
@@ -239,9 +249,9 @@ A ready-to-adapt impact & remediation write-up is in [`docs/remediation.md`](doc
 ```
 docker-compose.yml   .env   Makefile   README.md
 images/{eol,outdated,patched}/Dockerfile
-config/{php2shell-tune.ini,php2shell-stock.ini,fetch-stock-ini.sh,mpm-prefork.conf}  # config profiles + Apache MPM
-webapp-{eol,outdated,patched}/{index.php,assess.php,view.php,login.php,includes/{cve.php,layout.php},content/*,assets/style.css}  # per-target trees (one per host)
-scan/{check.sh,DETECTION.md,sample-logs/*}
+config/{php2shell-tune.ini,php2shell-stock.ini,fetch-stock-ini.sh,mpm-prefork.conf,rawlog.conf}  # config profiles + Apache MPM + raw-capture
+webapp/{index.php,assess.php,view.php,login.php,includes/{cve.php,layout.php},content/*,assets/style.css}  # single source; sync-webapp.sh derives webapp-{eol,outdated,patched}/ (gitignored)
+scan/{check.sh,profile.sh,wafprobe.sh,vuln-checker.py,sync-webapp.sh,DETECTION.md,sample-logs/*}
 waf/{php2shell-virtual-patch.conf,lfi-virtual-patch.conf}
 docs/{remediation.md,lfi-remediation.md,session-fixation-remediation.md,waf-tuning.md}
 ```

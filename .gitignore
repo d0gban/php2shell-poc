@@ -9,6 +9,12 @@ Thumbs.db
 .env.local
 docker-compose.override.yml
 
+# Generated per-target webapp trees (built from ./webapp by scan/sync-webapp.sh).
+# Source of truth is ./webapp; these are build artifacts the containers mount.
+webapp-eol/
+webapp-outdated/
+webapp-patched/
+
 # Lab raw-capture output (per-version Apache logs + checker request log)
 logs/eol/
 logs/outdated/

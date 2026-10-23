@@ -12,6 +12,5 @@ RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
  && sed -ri 's/^[; ]*expose_php\s*=.*/expose_php = On/' "$PHP_INI_DIR/php.ini" \
  && a2enmod ssl >/dev/null \
  && printf 'ServerTokens Full\nServerSignature On\n' > /etc/apache2/conf-enabled/zzz-fingerprint.conf
-# Raw-HTTP capture for WAF rule development (observability only; see rawlog.conf).
-COPY rawlog.conf /etc/apache2/conf-enabled/zzz-rawlog.conf
+# Raw-HTTP capture (config/rawlog.conf) is mounted by docker-compose at runtime — not baked.
 EXPOSE 80

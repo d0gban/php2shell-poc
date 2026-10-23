@@ -53,8 +53,6 @@ RUN { \
     } >> "$PHP_INI_DIR/php.ini" \
  && mkdir -p /tmp && chmod 1733 /tmp
 
-# Raw-HTTP capture for WAF rule development (observability only; see rawlog.conf).
-# NOTE: the webapp is NOT baked here — docker-compose mounts ./webapp:/var/www/html:ro
-# (identical app on all three hosts; only PHP differs), which would shadow any baked copy anyway.
-COPY rawlog.conf /etc/apache2/conf-enabled/zzz-rawlog.conf
+# Raw-HTTP capture (config/rawlog.conf) and the per-target webapp tree are both
+# mounted by docker-compose at runtime — not baked — so one source serves every host.
 EXPOSE 80

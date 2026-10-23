@@ -13,6 +13,7 @@ services:
       - ./webapp-eol:/var/www/html:ro        # per-target app tree; edit one node without touching the others
       - ${PHP_TUNE_INI:-./config/php2shell-tune.ini}:/usr/local/etc/php/conf.d/zz-php2shell-tune.ini:ro  # config profile (setup.sh --stock|--tuned); overrides php.ini-production
       - ./config/mpm-prefork.conf:/etc/apache2/conf-enabled/zz-mpm-prefork.conf:ro  # prefork MaxRequestWorkers 150 (worker-reuse repro)
+      - ./config/rawlog.conf:/etc/apache2/conf-enabled/zzz-rawlog.conf:ro  # raw HTTP capture config (mod_dumpio); one source for all three
       - ./logs/eol:/var/log/apache2          # raw HTTP capture (mod_dumpio) for WAF rule dev
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
 
@@ -26,6 +27,7 @@ services:
       - ./webapp-outdated:/var/www/html:ro   # per-target app tree; edit one node without touching the others
       - ${PHP_TUNE_INI:-./config/php2shell-tune.ini}:/usr/local/etc/php/conf.d/zz-php2shell-tune.ini:ro  # config profile (setup.sh --stock|--tuned); overrides php.ini-production
       - ./config/mpm-prefork.conf:/etc/apache2/conf-enabled/zz-mpm-prefork.conf:ro  # prefork MaxRequestWorkers 150 (worker-reuse repro)
+      - ./config/rawlog.conf:/etc/apache2/conf-enabled/zzz-rawlog.conf:ro  # raw HTTP capture config (mod_dumpio); one source for all three
       - ./logs/outdated:/var/log/apache2     # raw HTTP capture (mod_dumpio) for WAF rule dev
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
 
@@ -39,5 +41,6 @@ services:
       - ./webapp-patched:/var/www/html:ro    # per-target app tree; edit one node without touching the others
       - ${PHP_TUNE_INI:-./config/php2shell-tune.ini}:/usr/local/etc/php/conf.d/zz-php2shell-tune.ini:ro  # config profile (setup.sh --stock|--tuned); overrides php.ini-production
       - ./config/mpm-prefork.conf:/etc/apache2/conf-enabled/zz-mpm-prefork.conf:ro  # prefork MaxRequestWorkers 150 (worker-reuse repro)
+      - ./config/rawlog.conf:/etc/apache2/conf-enabled/zzz-rawlog.conf:ro  # raw HTTP capture config (mod_dumpio); one source for all three
       - ./logs/patched:/var/log/apache2      # raw HTTP capture (mod_dumpio) for WAF rule dev
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up

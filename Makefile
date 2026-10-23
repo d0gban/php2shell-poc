@@ -1,9 +1,12 @@
 # PHP2Shell lab — convenience targets. Requires Docker + Docker Compose v2.
-.PHONY: up down scan logs rebuild clean check behavior wafprobe rawlogs killchain
+.PHONY: up down scan logs rebuild clean check profile wafprobe rawlogs killchain sync
 
-up:            ## Build + start the three-version lab
+up: sync       ## Build + start the three-version lab
 	docker compose up --build -d
 	@echo "EOL  -> http://localhost:8080   OUTDATED -> http://localhost:8081   PATCHED -> http://localhost:8082"
+
+sync:          ## Regenerate webapp-{eol,outdated,patched}/ from the ./webapp source
+	bash scan/sync-webapp.sh
 
 down:          ## Stop and remove containers
 	docker compose down
@@ -17,17 +20,17 @@ scan:          ## Run the verdict scanner against the running lab
 check:         ## Benign client-side PHP2Shell version checker (per-version verdicts)
 	python3 scan/vuln-checker.py
 
-behavior:      ## Per-version observable HTTP behaviour profile
-	bash scan/behavior.sh
+profile:       ## Per-version HTTP behaviour profile (add 'verify' to assert the fingerprint is real)
+	bash scan/profile.sh
 
-wafprobe:      ## Send benign attack-shaped probes (WAF/IDS detection tuning)
-	bash scan/waf-test.sh
+wafprobe:      ## Send benign attack-shaped signature probes (WAF/IDS detection tuning)
+	bash scan/wafprobe.sh sig
 
 rawlogs:       ## Tail the per-version raw HTTP capture (mod_dumpio) on the host
 	tail -n +1 -f logs/eol/error.log logs/outdated/error.log logs/patched/error.log
 
 killchain:     ## Validate WAF blocks at each stage: passive/active recon + exploitation shape
-	bash scan/killchain.sh
+	bash scan/wafprobe.sh stages
 
 logs:          ## Tail container logs
 	docker compose logs -f

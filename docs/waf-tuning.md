@@ -22,8 +22,8 @@ without any exploit:
 
 | You need | Use | What it is |
 |----------|-----|------------|
-| Attack-shaped (but inert) traffic | [`scan/waf-test.sh`](../scan/waf-test.sh) | Benign multipart probes carrying the `PHP_SESSION_UPLOAD_PROGRESS` detection signature. No primitive, no RCE. |
-| Per-version HTTP behaviour | [`scan/behavior.sh`](../scan/behavior.sh) | Banners, headers, PHPSESSID shape, status/timing for ordinary requests — your false-positive baseline. |
+| Attack-shaped (but inert) traffic | [`scan/wafprobe.sh`](../scan/wafprobe.sh) | Benign multipart probes carrying the `PHP_SESSION_UPLOAD_PROGRESS` detection signature. No primitive, no RCE. |
+| Per-version HTTP behaviour | [`scan/profile.sh`](../scan/profile.sh) | Banners, headers, PHPSESSID shape, status/timing for ordinary requests — your false-positive baseline. |
 | Virtual-patch rules | [`waf/php2shell-virtual-patch.conf`](../waf/php2shell-virtual-patch.conf) | ModSecurity rules keyed on the public HTTP IOCs. |
 
 ## HTTP-level indicators (from the public advisories)
@@ -42,20 +42,20 @@ without any exploit:
 
 ## Tuning workflow
 
-1. **Baseline, no WAF:** `bash scan/behavior.sh` and `bash scan/waf-test.sh`
+1. **Baseline, no WAF:** `bash scan/profile.sh` and `bash scan/wafprobe.sh sig`
    straight at the lab ports. Record status/timing — "sig" and "control" both 200.
-2. **Put your WAF in front** (`TARGET=http://your-waf bash scan/waf-test.sh`).
+2. **Put your WAF in front** (`TARGET=http://your-waf bash scan/wafprobe.sh sig`).
 3. **Load** `waf/php2shell-virtual-patch.conf` in **DetectionOnly** first. Watch
    which legitimate traffic rule 1000100 lights up.
 4. **Allow-list** real upload routes (rule 1000090), then flip the non-upload
    block (1000110) to `deny,status:403`.
-5. **Verify:** the "sig"/"sig-name" probes get blocked; `behavior.sh`'s ordinary
+5. **Verify:** the "sig"/"sig-name" probes get blocked; `profile.sh`'s ordinary
    requests and your real app traffic stay 200. Confirm the same on all three
    PHP versions — a good rule targets the *attack shape*, not "any PHP server".
 
 ## Blocking across the kill chain
 
-Run `bash scan/killchain.sh` (or `TARGET=http://your-waf bash scan/killchain.sh`)
+Run `bash scan/wafprobe.sh stages` (or `TARGET=http://your-waf bash scan/wafprobe.sh stages`)
 to validate a block at each stage. All probes are benign — stage 3 carries the
 exploitation-stage *HTTP shape* only, no primitive.
 

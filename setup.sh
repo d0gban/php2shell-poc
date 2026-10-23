@@ -138,6 +138,7 @@ else
   warn "Config profile: ${BLD}tuned${RST} (deliberately weakened — $PHP_TUNE_INI). Use --stock for the baseline."
 fi
 say "${CYN}Building and starting 3 containers (first run pulls PHP images)...${RST}"
+bash scan/sync-webapp.sh                        # generate webapp-{eol,outdated,patched}/ from ./webapp
 mkdir -p logs/eol logs/outdated logs/patched   # host mount dirs for raw HTTP capture
 $DC up --build -d
 

@@ -46,7 +46,7 @@ each container — see `docker-compose.yml`). Two files matter most:
 
 | File | Contents | Format |
 |------|----------|--------|
-| `logs/<role>/lab_capture.log` | One line per HTTP request (the access log) | the `labcap` format — see [`images/*/rawlog.conf`](../images/eol/rawlog.conf) |
+| `logs/<role>/lab_capture.log` | One line per HTTP request (the access log) | the `labcap` format — see [`config/rawlog.conf`](../config/rawlog.conf) |
 | `logs/<role>/error.log` | PHP errors and Apache worker crashes | standard Apache/PHP error log |
 
 A `labcap` line looks like this (learn to read it):
@@ -279,9 +279,9 @@ PATCHED    8082   8.4.27     PATCHED          8.4.27
 ```
 `UNREACHABLE` → the lab is not up (run `bash setup.sh` first).
 
-### `verify.sh` — "is the fingerprint real, not spoofed?"
+### `profile.sh verify` — "is the fingerprint real, not spoofed?"
 ```bash
-bash scan/verify.sh
+bash scan/profile.sh verify
 ```
 Expected: all `[PASS]`, ending in:
 ```
@@ -292,41 +292,41 @@ A `[FAIL]` on the banner/OpenSSL token → the fingerprint config of that image 
 wrong (this is exactly what a broken `eol` Dockerfile without `ServerTokens Full`
 would cause). `[SKIP]` = no Docker available (HTTP checks ran only).
 
-### `behavior.sh` — "what is the per-version behavior? (false-positive baseline)"
+### `profile.sh` — "what is the per-version behavior? (false-positive baseline)"
 ```bash
-bash scan/behavior.sh
+bash scan/profile.sh
 ```
 Prints the Server/X-Powered-By/`PHPSESSID` shape + status/timing of ordinary requests
 per host. This is your **baseline**: whatever a WAF rule does to the `sig` probe, it
 **must not touch these**.
 
-### `waf-test.sh` — "does the WAF block the detection signature?"
+### `wafprobe.sh sig` — "does the WAF block the detection signature?"
 ```bash
 # baseline (directly at the lab):
-bash scan/waf-test.sh
+bash scan/wafprobe.sh sig
 # through a WAF:
-TARGET=http://your-waf bash scan/waf-test.sh
+TARGET=http://your-waf bash scan/wafprobe.sh sig
 ```
-Expected **baseline** (no WAF — all `200`):
+Expected **baseline** (no WAF — all `200`), one block per target:
 ```
-PROBE     TARGET                                 RESULT
----------------------------------------------------------------------
-control   http://127.0.0.1:8080/                 HTTP 200
-sig       http://127.0.0.1:8080/index.php        HTTP 200
-sig-name  http://127.0.0.1:8080/                 HTTP 200
+=== TARGET http://127.0.0.1:8080 ===================================================
+    control                    HTTP 200
+    sig                        HTTP 200
+    sig-name                   HTTP 200
 ```
 Expected **behind a tuned WAF** — this is success:
 ```
-control   http://your-waf/                       HTTP 200      <- legitimate, must pass
-sig       http://your-waf/index.php              HTTP 403      <- attack shape, blocked
-sig-name  http://your-waf/                       HTTP 403      <- also blocked
+=== TARGET http://your-waf ===================================================
+    control                    HTTP 200      <- legitimate, must pass
+    sig                        HTTP 403      <- attack shape, blocked
+    sig-name                   HTTP 403      <- also blocked
 ```
 A `control` that becomes `403` = **too strict** (false positive) — review the
 allow-list.
 
-### `killchain.sh` — "is it blocked at EVERY stage?"
+### `wafprobe.sh stages` — "is it blocked at EVERY stage?"
 ```bash
-TARGET=http://your-waf bash scan/killchain.sh
+TARGET=http://your-waf bash scan/wafprobe.sh stages
 ```
 Expected behind a tuned WAF:
 ```
