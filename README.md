@@ -80,6 +80,22 @@ Compare the two runs: `/assess.php`'s **Current config** column (Factory default
 changes between `--stock` and `--tuned`. For the manual path, set `PHP_TUNE_INI` before compose:
 `PHP_TUNE_INI=./config/php2shell-stock.ini docker compose up --build -d`.
 
+- `config/php2shell-stock.ini` mirrors `php.ini-production` for every directive the lab audits
+  (`memory_limit=128M`, `post_max_size=8M`, `display_errors=Off`, `session.upload_progress.enabled=On`).
+  For the **byte-exact** upstream file, run `bash config/fetch-stock-ini.sh` (needs Docker; pulls it
+  from the pinned `OLD_TAG` image).
+
+**Apache prefork MPM.** `config/mpm-prefork.conf` is mounted into every container and sets
+`MaxRequestWorkers 150` with `MaxConnectionsPerChild 0` (workers never recycled) — the official
+prefork model the PHP2Shell worker-reuse vector (CVE-2026-109619, stale per-worker state) relies on.
+It is an Apache MPM setting, not a `php.ini` directive. For a deterministic single-worker repro, set
+`MaxRequestWorkers 1` / `ServerLimit 1` there instead (no longer the "official prefork 150" scenario).
+
+> **For the PHP2Shell exploit repro:** run `bash setup.sh --stock` (stock production config) with the
+> prefork MPM above. Optional, and *not* a config change: the extra LFI/login app code can perturb the
+> heap — for the cleanest repro, blank `webapp/index.php` (or serve a minimal page) so only the runtime
+> is under test.
+
 ```bash
 docker compose up --build -d
 ```
@@ -217,7 +233,7 @@ A ready-to-adapt impact & remediation write-up is in [`docs/remediation.md`](doc
 ```
 docker-compose.yml   .env   Makefile   README.md
 images/{eol,outdated,patched}/Dockerfile
-config/{php2shell-tune.ini,php2shell-stock.ini}        # shared config profiles (setup.sh --tuned|--stock)
+config/{php2shell-tune.ini,php2shell-stock.ini,fetch-stock-ini.sh,mpm-prefork.conf}  # config profiles + Apache MPM
 webapp/{index.php,assess.php,view.php,login.php,includes/{cve.php,layout.php},content/*,assets/style.css}
 scan/{check.sh,DETECTION.md,sample-logs/*}
 waf/{php2shell-virtual-patch.conf,lfi-virtual-patch.conf}

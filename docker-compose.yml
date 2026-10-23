@@ -12,6 +12,7 @@ services:
     volumes:
       - ./webapp:/var/www/html:ro            # identical app on all three; only PHP differs
       - ${PHP_TUNE_INI:-./config/php2shell-tune.ini}:/usr/local/etc/php/conf.d/zz-php2shell-tune.ini:ro  # config profile (setup.sh --stock|--tuned); overrides php.ini-production
+      - ./config/mpm-prefork.conf:/etc/apache2/conf-enabled/zz-mpm-prefork.conf:ro  # prefork MaxRequestWorkers 150 (worker-reuse repro)
       - ./logs/eol:/var/log/apache2          # raw HTTP capture (mod_dumpio) for WAF rule dev
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
 
@@ -24,6 +25,7 @@ services:
     volumes:
       - ./webapp:/var/www/html:ro
       - ${PHP_TUNE_INI:-./config/php2shell-tune.ini}:/usr/local/etc/php/conf.d/zz-php2shell-tune.ini:ro  # config profile (setup.sh --stock|--tuned); overrides php.ini-production
+      - ./config/mpm-prefork.conf:/etc/apache2/conf-enabled/zz-mpm-prefork.conf:ro  # prefork MaxRequestWorkers 150 (worker-reuse repro)
       - ./logs/outdated:/var/log/apache2     # raw HTTP capture (mod_dumpio) for WAF rule dev
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
 
@@ -36,5 +38,6 @@ services:
     volumes:
       - ./webapp:/var/www/html:ro
       - ${PHP_TUNE_INI:-./config/php2shell-tune.ini}:/usr/local/etc/php/conf.d/zz-php2shell-tune.ini:ro  # config profile (setup.sh --stock|--tuned); overrides php.ini-production
+      - ./config/mpm-prefork.conf:/etc/apache2/conf-enabled/zz-mpm-prefork.conf:ro  # prefork MaxRequestWorkers 150 (worker-reuse repro)
       - ./logs/patched:/var/log/apache2      # raw HTTP capture (mod_dumpio) for WAF rule dev
     restart: "no"              # throwaway lab: only runs when you explicitly bring it up
