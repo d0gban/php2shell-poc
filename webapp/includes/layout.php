@@ -15,6 +15,8 @@ function render_header(string $title): void {
   <div class="brand"><span class="logo">▣</span> Acme Intranet Portal</div>
   <nav>
     <a href="/">Home</a>
+    <a href="/view.php?doc=welcome.php">Knowledge Base</a>
+    <a href="/login.php">Member Login</a>
     <a href="/assess.php">Security Self-Check</a>
   </nav>
   <div class="verrun">PHP <?= htmlspecialchars($running) ?></div>

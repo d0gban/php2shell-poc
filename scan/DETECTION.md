@@ -376,3 +376,53 @@ off, and then you have no protection.
 
 [dd]: https://securitylabs.datadoghq.com/articles/php2shell-critical-vulnerabilities-in-php/
 [ss]: https://sansec.io/research/php2shell
+
+---
+
+## 7. Appendix — App-layer chain: LFI + session fixation
+
+> This appendix covers the two **application** vulnerabilities added to the lab app
+> (`webapp/view.php`, `webapp/login.php`). They are independent of the PHP2Shell
+> runtime bug — present on patched and unpatched hosts alike — and fixed in code, not
+> by upgrading PHP. Remediation: [`docs/lfi-remediation.md`](../docs/lfi-remediation.md),
+> [`docs/session-fixation-remediation.md`](../docs/session-fixation-remediation.md).
+> Rules: [`waf/lfi-virtual-patch.conf`](../waf/lfi-virtual-patch.conf) (IDs `1000300`–`1000350`).
+> Sample capture: [`scan/sample-logs/lfi-access.log`](sample-logs/lfi-access.log).
+
+### What it is (plain terms)
+
+| Term | In plain terms |
+|------|----------------|
+| **LFI** (Local File Inclusion) | The app hands user input to `include()`. The attacker steers it to read, or **execute**, files on the server. |
+| **Session fixation** | The app lets the attacker choose the session id and keeps it valid after login — so the attacker rides the victim's authenticated session, and the session file sits at a predictable path. |
+| **The chain** | fixation gives a known `/tmp/sess_<id>` path → poison it with PHP → LFI `include()`s it → **RCE**, with no remote file fetch needed. |
+
+### How to read it in the logs
+
+Look at the `doc` parameter on `/view.php`. In normal use it is an article name
+(`welcome.php`). It is an **attack** when it contains any of:
+
+1. **Traversal** — `../` runs or encoded forms (`%2e%2e%2f`). → WAF `1000300`.
+2. **Stream wrapper** — `php://`, `data://`, `phar://`. → WAF `1000310`.
+3. **Sensitive absolute path** — `/etc/passwd`, `/var/log/…`, `/tmp/sess_…`. → WAF `1000320`.
+4. **`?sid=` on `/login.php`** — a caller-supplied session id (fixation). → WAF `1000340`.
+
+A single client showing **two or more** of these (e.g. `1000340` then `1000320`) is the
+combined chain assembling — rule `1000350` escalates on the correlated score. Walk
+[`sample-logs/lfi-access.log`](sample-logs/lfi-access.log) stage by stage to see it.
+
+### What the correct WAF response is (the end goal)
+
+| Stage | Trace | Correct response |
+|-------|-------|------------------|
+| LFI probe | `doc` with `../` or `php://` | **403** at the edge (`1000300`/`1000310`) + alert |
+| Sensitive path | `doc=…/etc/passwd`, `…/tmp/sess_…` | **403** (`1000320`) + alert |
+| Fixation | `/login.php?sid=…` | **403** (`1000340`) — the app should never take an id from the URL |
+| Chain assembling | two+ indicators, one client | escalate (`1000350`); block the client |
+
+### Honest scope (same caveat as §6)
+
+The WAF is a **stopgap**. The real fix is the code change: allow-list + `basename()` +
+`realpath()` in `view.php`, and `session_regenerate_id(true)` + `use_strict_mode=1` in
+`login.php`. Remove `waf/lfi-virtual-patch.conf` once those ship. Verify by re-running
+the probes in `lfi-access.log`: fixed, they return **404/normal**, not file contents.

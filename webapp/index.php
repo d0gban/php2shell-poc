@@ -39,5 +39,13 @@ render_header('Home');
      to confirm your rules don't flag an already-remediated host.</p>
   <?php endif; ?>
 </section>
+<section class="panel">
+  <h3>Document hub (app-layer sink)</h3>
+  <p>The <a href="/view.php?doc=welcome.php">Knowledge Base viewer</a> renders internal articles via
+     <code>include()</code>. It carries a deliberate <strong>Local File Inclusion</strong> — the concrete
+     form of the <q>include()/require() sink reachable with attacker-influenced input</q> that the
+     self-check flags as a PHP2Shell precondition. Use it to profile LFI traffic and validate
+     <code>waf/lfi-virtual-patch.conf</code>; fix it per <code>docs/lfi-remediation.md</code>.</p>
+</section>
 <?php
 render_footer();

@@ -1,0 +1,34 @@
+# === SAMPLE: LFI + session-fixation chain (labcap access log, APP side) ==========
+# What the Knowledge-Base LFI (view.php) and the login fixation (login.php) look like
+# on the target's own access log. Attacker IP 203.0.113.50. RFC 5737 docs IPs.
+# Not a real capture. Fields match killchain-access.log.
+# Fields: <IP> <time> "<req>" <status> <bytes> ct=<req-Content-Type> len=<req-Content-Length> ua=<User-Agent> xff=<X-Forwarded-For>
+#
+# --------------------------------------------------------------------------------
+# STAGE 1 — NORMAL USE  (baseline; the viewer with a legitimate article name)
+# --------------------------------------------------------------------------------
+203.0.113.50 2026-10-23T09:12:01 "GET /view.php?doc=welcome.php HTTP/1.1" 200 812 ct="-" len="-" ua="Mozilla/5.0" xff="-"
+
+# --------------------------------------------------------------------------------
+# STAGE 2 — LFI PROBING  (traversal + wrapper; the tells are ../ and php://filter)
+# Tell: the `doc` value stops looking like an article name — it contains ../ runs,
+# an absolute path, or a stream wrapper. WAF rules 1000300/310/320 key on exactly these.
+# --------------------------------------------------------------------------------
+203.0.113.50 2026-10-23T09:14:40 "GET /view.php?doc=../../../../etc/passwd HTTP/1.1" 200 1340 ct="-" len="-" ua="curl/8.4.0" xff="-"
+203.0.113.50 2026-10-23T09:14:58 "GET /view.php?doc=php://filter/convert.base64-encode/resource=../includes/cve.php HTTP/1.1" 200 2201 ct="-" len="-" ua="curl/8.4.0" xff="-"
+
+# --------------------------------------------------------------------------------
+# STAGE 3 — SESSION FIXATION  (priming a known id, then the login POST that poisons it)
+# Tell: ?sid= on /login.php (WAF rule 1000340), and a POST whose body field carries a
+# PHP tag. The id is attacker-chosen (shellsess) so the session-file path is predictable.
+# --------------------------------------------------------------------------------
+203.0.113.50 2026-10-23T09:16:10 "GET /login.php?sid=shellsess HTTP/1.1" 200 640 ct="-" len="-" ua="curl/8.4.0" xff="-"
+203.0.113.50 2026-10-23T09:16:22 "POST /login.php HTTP/1.1" 200 640 ct="application/x-www-form-urlencoded" len="78" ua="curl/8.4.0" xff="-"
+
+# --------------------------------------------------------------------------------
+# STAGE 4 — CHAIN FIRES  (LFI includes the poisoned session file -> RCE)
+# Tell: `doc` points at /tmp/sess_<id> (rule 1000320) AND an extra command param rides
+# along (&c=id). A 200 here means the include executed the injected PHP. This is the
+# moment detection must already have blocked — correlate with rule 1000350.
+# --------------------------------------------------------------------------------
+203.0.113.50 2026-10-23T09:16:49 "GET /view.php?doc=../../../../tmp/sess_shellsess&c=id HTTP/1.1" 200 980 ct="-" len="-" ua="curl/8.4.0" xff="-"

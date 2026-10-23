@@ -96,6 +96,16 @@ docker compose down         # or:  make down
   banner and a VULNERABLE / PATCHED badge.
 - **`/assess.php`** — self-assessment: version→CVE verdict + an interim-mitigation config audit.
   Add `?format=json` for machine-readable output (used by the scanner).
+- **`/view.php?doc=…`** — Knowledge-Base viewer with a deliberate **Local File Inclusion** (CWE-98/22).
+  The concrete form of the `include()`-sink precondition `/assess.php` flags. App-layer, present on all
+  three hosts. Remediation: [`docs/lfi-remediation.md`](docs/lfi-remediation.md).
+- **`/login.php`** — Member login with deliberate **Session Fixation** (CWE-384): adopts a caller-set
+  `?sid=` and never regenerates on login. Pairs with the LFI into a session-file → `include()` → RCE
+  chain. Remediation: [`docs/session-fixation-remediation.md`](docs/session-fixation-remediation.md).
+
+> The LFI and session-fixation flaws are **application-layer**, independent of the PHP2Shell runtime
+> bug: fixed in code, not by upgrading PHP. WAF shielding: [`waf/lfi-virtual-patch.conf`](waf/lfi-virtual-patch.conf);
+> detection: [`scan/DETECTION.md`](scan/DETECTION.md) §7 + [`scan/sample-logs/lfi-access.log`](scan/sample-logs/lfi-access.log).
 
 The point is the **runtime underneath** the app. Each host runs a real PHP build and advertises it the
 way a production server does (`Server` / `X-Powered-By`, error pages, default config), giving you an
